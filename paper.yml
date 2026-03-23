@@ -1,0 +1,82 @@
+# ============================================================
+# paper.yml — Minemen-style 1.8.8 BedWars PvP
+# ============================================================
+verbose: false
+config-version: 14
+settings:
+  player-auto-save-rate: -1
+  max-player-auto-save-per-tick: -1
+  save-empty-scoreboard-teams: false
+  bungee-online-mode: true
+  region-file-cache-size: 256
+  # Higher threshold = fewer false kicks during fast combat
+  incoming-packet-spam-threshold: 500
+  use-alternative-luck-formula: false
+  suggest-player-names-when-null-completion: true
+  load-permissions-yml-before-plugins: true
+  watchdog:
+    early-warning-every: 10000
+    early-warning-delay: 30000
+  spam-limiter:
+    tab-spam-increment: 1
+    tab-spam-limit: 500
+  async-chunks:
+    enable: true
+    threads: -1
+  chunk-loading:
+    player-max-concurrent-loads: 4
+    global-max-concurrent-loads: 8
+    player-max-chunk-load-rate: -1.0
+    global-max-chunk-load-rate: -1.0
+    player-max-chunk-generate-rate: -1.0
+    global-max-chunk-generate-rate: -1.0
+world-settings:
+  default:
+    # Anti-Xray — disabled (not needed for BedWars)
+    anti-xray:
+      enabled: false
+    # Optimize explosions (TNT, fireballs)
+    optimize-explosions: true
+    # Game mechanics
+    disable-end-credits: true
+    game-mechanics:
+      disable-chest-cat-detection: true
+      disable-player-crits: false
+    # Mob spawner 
+    mob-spawner-tick-rate: 2
+    # Entity limits
+    despawn-ranges:
+      soft: 28
+      hard: 96
+    # Hopper optimization
+    hopper:
+      cooldown-when-full: true
+      disable-move-event: true
+    # Tile entity tick rate — reduced for BedWars
+    container-update-tick-rate: 1
+    # Falling block / entity optimizations
+    max-auto-save-chunks-per-tick: 6
+    prevent-moving-into-unloaded-chunks: true
+    use-vanilla-world-scoreboard-name-coloring: false
+    # Armor stands
+    armor-stands-tick: false
+    armor-stands-do-collision-entity-lookups: false
+    # grass spread rate
+    grass-spread-tick-rate: 4
+    # TNT entity height nerf — set to 0 to disable
+    tnt-entity-height-nerf: 0.0
+    falling-block-height-nerf: 0.0
+    # Keep spawn loaded for lobby
+    keep-spawn-loaded: true
+    # Water flow
+    water-over-lava-flow-speed: 5
+    # Disable treasure maps (lag)
+    treasure-maps:
+      enabled: false
+    # Baby zombie movement speed
+    baby-zombie-movement-speed: 0.5
+    # Queue light updates
+    queue-light-updates: false
+    max-growth-height:
+      cactus: 3
+      reeds: 3

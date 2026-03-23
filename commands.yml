@@ -1,0 +1,8 @@
+# ============================================================
+# commands.yml — Bukkit command aliases
+# ============================================================
+# /role <player> <rank> → sets LuckPerms group
+# Only players with luckperms.user.parent.set permission can use this (owner only)
+command-aliases:
+  role:
+    - "lp user $1 parent set $2"

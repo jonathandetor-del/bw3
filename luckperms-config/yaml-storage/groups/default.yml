@@ -1,0 +1,6 @@
+name: default
+permissions:
+- bukkit.command.help
+- bukkit.command.list
+- "prefix.0.&7[PLAYER] &f"
+- "weight.0"

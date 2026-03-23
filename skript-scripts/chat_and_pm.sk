@@ -1,0 +1,99 @@
+options:
+  dm_sound: NOTE_PLING
+  mention_sound: NOTE_PLING
+
+function isExplicitOwner(p: player) :: boolean:
+  set {_id} to uuid of {_p}
+  if {_id} is "c64fb935-7b38-4511-ae8d-b7ad55923249":
+    return true
+  if {_id} is "3fdff583-4153-3553-80da-d2b644d579d5":
+    return true
+  return false
+
+# Returns a rank-formatted name for lobby chat / DMs.
+function rankTag(p: player) :: string:
+  if isExplicitOwner({_p}) is true:
+    if {_p} has permission "group.owner":
+      return "&4&l[OWNER]&r &c%{_p}%"
+  if {_p} has permission "group.dev":
+    return "&3&l[DEV]&r &b%{_p}%"
+  if {_p} has permission "group.admin":
+    return "&c&l[ADMIN]&r &c%{_p}%"
+  if {_p} has permission "group.mvp++":
+    return "&6&l[MVP&c++&6]&r &6%{_p}%"
+  if {_p} has permission "group.mvp+":
+    return "&b&l[MVP&c+&b]&r &b%{_p}%"
+  if {_p} has permission "group.mvp":
+    return "&b&l[MVP]&r &b%{_p}%"
+  if {_p} has permission "group.vip+":
+    return "&a&l[VIP&6+&a]&r &a%{_p}%"
+  if {_p} has permission "group.vip":
+    return "&a&l[VIP]&r &a%{_p}%"
+  return "&7%{_p}%"
+
+# Update tab list names only in lobby (every 5 ticks = 0.25s to reduce overhead)
+# BedWars handles tab formatting in arenas via scoreboard teams
+every 5 ticks:
+  loop all players:
+    if "%world of loop-player%" is "lobby":
+      set tab list name of loop-player to colored rankTag(loop-player)
+
+# Remove the Skript-based /bw start countdown sounds
+# BedWars plugin handles countdown sounds natively now
+
+on chat:
+  set {_msg} to message
+
+  # Mention ping
+  set {_lowerMsg} to lowercase {_msg}
+  loop all players:
+    if loop-player is not player:
+      set {_targetName} to lowercase "%loop-player%"
+      if {_lowerMsg} contains {_targetName}:
+        play sound "{@mention_sound}" with volume 1 and pitch 1 for loop-player
+
+  # Lobby: rank + name broadcast to all (custom lobby format).
+  if "%world of player%" is "lobby":
+    cancel event
+    set {_name} to rankTag(player)
+    broadcast colored "&7%{_name}%&7: &f%{_msg}%"
+  else:
+    # In-game: let BedWars ChatFormatting handle team color + team chat rules.
+    stop
+
+command /msg <player> <text>:
+  trigger:
+    if arg-1 is not online:
+      send "&cThat player is offline."
+      stop
+
+    set {lastdm::%player%} to arg-1
+    set {lastdm::%arg-1%} to player
+
+    set {_from} to rankTag(player)
+    set {_to} to rankTag(arg-1)
+
+    send "&8[&dDM&8] %{_from}% &8-> %{_to}%&7: &f%arg-2%"
+    send "&8[&dDM&8] %{_from}% &8-> %{_to}%&7: &f%arg-2%" to arg-1
+    play sound "{@dm_sound}" with volume 1 and pitch 1 for arg-1
+
+command /r <text>:
+  trigger:
+    if {lastdm::%player%} is not set:
+      send "&cNo one has messaged you yet."
+      stop
+
+    set {_target} to {lastdm::%player%}
+    if {_target} is not online:
+      send "&cThat player is offline."
+      stop
+
+    set {lastdm::%player%} to {_target}
+    set {lastdm::%{_target}%} to player
+
+    set {_from} to rankTag(player)
+    set {_to} to rankTag({_target})
+
+    send "&8[&dDM&8] %{_from}% &8-> %{_to}%&7: &f%arg-1%"
+    send "&8[&dDM&8] %{_from}% &8-> %{_to}%&7: &f%arg-1%" to {_target}
+    play sound "{@dm_sound}" with volume 1 and pitch 1 for {_target}

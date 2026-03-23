@@ -1,0 +1,23 @@
+# LuckPerms Configuration
+# Storage: YAML (file-based, pre-configurable in Docker)
+
+server: global
+
+storage-method: yaml
+
+# Data directory
+data:
+  pool-settings:
+    maximum-pool-size: 10
+    minimum-idle: 10
+    maximum-lifetime: 1800000
+    connection-timeout: 5000
+
+# Use Vault for prefix/suffix integration with TAB
+vault:
+  server: global
+  include-global: true
+  primary-group-overrides: false
+
+# Miscellaneous
+use-server-uuid-cache: true

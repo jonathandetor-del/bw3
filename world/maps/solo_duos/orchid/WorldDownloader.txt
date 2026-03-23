@@ -1,0 +1,15 @@
+#These settings are shared across an entire server.  If multiworld is enabled, they act as the default values for the individual world properties; otherwise, they are used directly.
+#Wed May 03 14:14:57 CDT 2023
+Entity.Hologram.Enabled=false
+Messages.enableAll=true
+Messages.REMOVE_ENTITY=false
+Messages.PLUGIN_CHANNEL_MESSAGE=false
+Messages.INFO=true
+LinkedWorlds=
+GameType=creative
+Messages.UPDATE_DEBUG=false
+ServerName=stuck.hypixel.net
+Messages.ON_CHUNK_NO_LONGER_NEEDED=false
+LastSaved=1683141296832
+Messages.SAVING=true
+Messages.ON_WORLD_LOAD=false

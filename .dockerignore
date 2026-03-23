@@ -1,0 +1,14 @@
+# Ignore git/IDE files
+.git
+.gitignore
+.vscode
+.idea
+*.md
+
+# Ignore crash reports and logs from local testing
+logs/
+crash-reports/
+
+# Ignore world backups
+*.zip
+*.tar.gz

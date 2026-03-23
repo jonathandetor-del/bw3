@@ -1,0 +1,78 @@
+# ============================================================
+# TAB Plugin Config — BistarWars
+# TAB by NEZNAMY (free version)
+# ============================================================
+
+# Header & Footer in TAB list
+header-footer:
+  enabled: true
+  header:
+    - |-
+      
+      &b&lBISTARWARS
+      &7Online: &a%online%
+  footer:
+    - ""
+
+# Tab list name formatting (shows LuckPerms prefix + name)
+tablist-name-formatting:
+  # Keep disabled so BedWars can set team-colored names in game.
+  enabled: false
+  default-format: "%name%"
+
+# Scoreboard-style playerlist sorting by rank weight
+layout:
+  enabled: false
+
+# Sorting types for TAB list ordering (owner at top)
+sorting-types:
+  - "GROUPS:owner,default"
+
+# Per-world playerlist
+per-world-playerlist:
+  enabled: false
+
+# Nametag formatting above player heads
+scoreboard-teams:
+  # Keep disabled to avoid conflicting with BedWars team coloring.
+  enabled: false
+  default-format:
+    prefix: "%vault-prefix%"
+    suffix: ""
+
+# Belowname (shows health/ping under nametag — disable for clean look)
+belowname:
+  enabled: false
+
+# Tablist objective (Hypixel-like live health in player list)
+playerlist-objective:
+  enabled: true
+  title: "&cHealth"
+  value: "%health%"
+
+# Disable legacy yellow number to avoid conflict with playerlist objective
+yellow-number:
+  enabled: false
+  value: "%ping%"
+
+# Global playerlist (show all players from all worlds)
+global-playerlist:
+  enabled: true
+
+# Prevent spectators from seeing each other in tab
+prevent-spectator-effect:
+  enabled: true
+
+# Placeholder refresh intervals (milliseconds)
+placeholderapi-refresh-intervals:
+  default-refresh-interval: 500
+
+# Pipeline injection method (for 1.8.8 compatibility)
+use-bukkit-permissions-manager: false
+
+# MySQL — disabled, use file storage
+mysql:
+  enabled: false
+
+# Debug
+debug: false

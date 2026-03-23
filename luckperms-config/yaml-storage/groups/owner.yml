@@ -1,0 +1,6 @@
+name: owner
+weight: 100
+permissions:
+- "*"
+- "prefix.100.&4&l[OWNER]&r &f"
+- "weight.100"

@@ -1,0 +1,36 @@
+# ============================================================
+# Railway deployment configuration
+# ============================================================
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+numReplicas = 1
+
+# Port Configuration
+[[services.ports]]
+name = "minecraft"
+port = 25565
+protocol = "TCP"
+
+[[services.ports]]
+name = "filebrowser"
+port = 8080
+protocol = "TCP"
+
+# Environment Variables
+[env]
+# Minecraft Server Configuration
+MINECRAFT_PORT = "25565"
+MEMORY = "8G"
+TZ = "UTC"
+
+# File Manager Configuration (FileBrowser)
+FILE_MANAGER_PORT = "8080"
+FILE_MANAGER_USERNAME = "admin"
+FILE_MANAGER_PASSWORD = "adminadmin123"
+FILE_MANAGER_DB = "/data/.filebrowser.db"

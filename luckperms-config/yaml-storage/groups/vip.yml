@@ -1,0 +1,5 @@
+name: vip
+weight: 10
+permissions:
+- "prefix.10.&a&l[VIP]&r &f"
+- "weight.10"
