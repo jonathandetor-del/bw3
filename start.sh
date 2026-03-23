@@ -378,7 +378,7 @@ extract_uploaded_archives() {
         mkdir -p "$tmpdir"
         case "$archive" in
             *.zip) unzip -o -q "$archive" -d "$tmpdir" ;;
-            *.rar) unrar x -o+ "$archive" "$tmpdir/" ;;
+            *.rar) bsdtar xf "$archive" -C "$tmpdir" ;;
         esac
         if [ $? -eq 0 ]; then
             # If archive extracted into a single subfolder, move contents up

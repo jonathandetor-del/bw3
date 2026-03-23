@@ -13,8 +13,7 @@ ENV MINECRAFT_PORT=25565 \
     TZ=UTC
 
 # FlamePaper is a performance-focused 1.8.8 Paper fork.
-RUN apk add --no-cache bash curl tar ca-certificates unzip && \
-    apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community unrar
+RUN apk add --no-cache bash curl tar ca-certificates unzip libarchive-tools
 
 # Install File Browser (web file manager)
 ARG FILEBROWSER_VERSION=v2.31.2
