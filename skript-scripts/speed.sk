@@ -1,0 +1,7 @@
+on world change:
+    if player's world is "world":
+        stop
+    else:
+        wait 40 ticks
+        # This removes the speed effect specifically and won't spam the chat
+        execute console command "effect %player% speed 0"

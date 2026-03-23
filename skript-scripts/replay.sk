@@ -1,0 +1,61 @@
+# --- Replay Automation: Master Permission & Stability Version ---
+
+on world change:
+    # MASTER PERMISSION: If they don't have this, the script does nothing.
+    if player has permission "replay.system.use":
+        
+        # 1. RESET SYSTEM (Returning to Lobby)
+        if world of player is "world":
+            
+            # Restore Permissions if they were watching
+            if player has permission "replay.renable":
+                execute console command "/lp user %player% permission set replay.match true"
+                execute console command "/lp user %player% permission unset replay.renable"
+                delete metadata value "is_watching" of player
+                send "&3[Replay] &7Permissions restored." to player
+
+            # STOP RECORDING & SEND LINK
+            if {replay.active.%player%} is set:
+                set {_currentReplay} to {replay.active.%player%}
+                execute player command "/replay stop %{_currentReplay}%"
+                
+                send "&7&m--------------------------------------------------" to player
+                execute console command "/tellraw %player% [{""text"":""REPLAY » "",""color"":""dark_aqua"",""bold"":true},{""text"":""Your game is ready! "",""color"":""white""},{""text"":""[CLICK HERE TO WATCH]"",""color"":""aqua"",""underlined"":true,""clickEvent"":{""action"":""run_command"",""value"":""/watchreplay %{_currentReplay}%""},""hoverEvent"":{""action"":""show_text"",""value"":""&bClick to watch!""}}]"
+                send "&3&lREPLAY » &cIt will be deleted in &6 5 mins" to player
+                send "&7&m--------------------------------------------------" to player
+                
+                delete {replay.active.%player%}
+                
+                wait 5 minutes
+                execute console command "/replay delete %{_currentReplay}%"
+
+        # 2. START RECORDING (Entering a Game World)
+        else:
+            # Short delay to allow 'watchreplay' command to set metadata
+            wait 10 ticks 
+            
+            # Final check: Must have Master Perm AND Match Perm AND not be watching
+            if player has permission "replay.system.use":
+                if metadata value "is_watching" of player is not set:
+                    if player has permission "replay.match":
+                        if {replay.active.%player%} is not set:
+                            set {_rand} to random integer between 1 and 1000
+                            set {_name} to "%player%_%{_rand}%"
+                            
+                            set {replay.active.%player%} to {_name}
+                            execute player command "/replay start %{_name}%"
+                            send "&3[Replay] &7Now recording match as &e%{_name}%&7..." to player
+
+# 3. THE WATCH COMMAND
+command /watchreplay <text>:
+    executable by: players
+    trigger:
+        if player has permission "replay.system.use":
+            set metadata value "is_watching" of player to true
+            
+            execute console command "/lp user %player% permission unset replay.match"
+            execute console command "/lp user %player% permission set replay.renable true"
+            
+            execute player command "/replay play %arg-1%"
+        else:
+            send "&cYou do not have permission to use the replay system."

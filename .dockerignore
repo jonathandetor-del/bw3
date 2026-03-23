@@ -12,3 +12,10 @@ crash-reports/
 # Ignore world backups
 *.zip
 *.tar.gz
+
+# Ignore legacy/non-Docker directories
+world/
+lobby/
+m160bw.tar/
+authme-config/
+fastlogin-config/

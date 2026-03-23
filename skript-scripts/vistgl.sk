@@ -1,0 +1,9 @@
+# Shortcut for /vistgl
+command /vistgl:
+    trigger:
+        execute console command "vt toggle %player%"
+
+# Shortcut for /vistoggle
+command /vistoggle:
+    trigger:
+        execute console command "vt toggle %player%"

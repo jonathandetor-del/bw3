@@ -1,0 +1,19 @@
+on command "/lp":
+    # Check if the command is for the editor
+    if arguments contains "editor":
+        # If a player is running it (not the console)
+        if sender is a player:
+            if player does not have permission "lp.owner":
+                cancel event
+                send "&cI'm sorry, but you do not have permission to use the editor." to player
+                stop
+        # If it's the console, the script does nothing and lets the command pass through.
+
+    # Logic for preventing unauthorized rank additions
+    if arguments contains "parent" and "add":
+        if arguments contains "owner" or "admin":
+            if sender is a player:
+                if player does not have permission "lp.owner":
+                    cancel event
+                    send "&cI am sorry, you do not have permission to assign that rank." to player
+                    stop

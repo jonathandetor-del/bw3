@@ -1,0 +1,11 @@
+on join:
+    wait 5 ticks
+    if world of player is "world":
+        if player has permission "sk.fly":
+            execute player command "/fly"
+
+on world change:
+    wait 1 tick
+    if world of player is "world":
+        if player has permission "sk.fly":
+            execute player command "/fly"

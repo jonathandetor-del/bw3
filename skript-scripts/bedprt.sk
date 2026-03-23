@@ -1,0 +1,20 @@
+on right click on a bed:
+    # 1. If the hand is empty AND they aren't sneaking, block the "Respawn set"
+    if player's tool is air:
+        if player is not sneaking:
+            cancel event
+            stop
+            
+    # 2. If they are sneaking and holding a block, we do NOT cancel.
+    # This allows the block to be placed on the bed without the message.
+    if player is sneaking:
+        if player's tool is not air:
+            # We explicitly allow this to ensure the block is placed
+            stop 
+
+    # 3. Final safety: If they try to click the bed with an empty hand while sneaking,
+    # some versions still try to set the spawn. Let's block that too.
+    if player is sneaking:
+        if player's tool is air:
+            cancel event
+            

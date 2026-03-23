@@ -1,0 +1,8 @@
+command /labby:
+    description: True 50/50 distribution between ml03K and ml890P
+    trigger:
+        chance of 50%:
+            make player execute command "/queue ml03K"
+            stop
+        # If the 50% chance above fails, it executes this
+        make player execute command "/queue ml890P"

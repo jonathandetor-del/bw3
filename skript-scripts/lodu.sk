@@ -1,0 +1,34 @@
+# Intercepting the /p and /pc commands
+on command:
+    # Handle /p command
+    if command is "p":
+        # Check if there are any arguments
+        if arguments is set:
+            set {_args::*} to arguments split at " "
+            
+            # Case 1: First argument is 'chat'
+            if {_args::1} is "chat":
+                cancel event
+                # Remove the first word 'chat' and keep the rest
+                set {_msg} to arguments
+                replace first "chat " with "" in {_msg}
+                # Execute the original /p command with the message
+                execute player command "/p %{_msg}%"
+            
+            # Case 2: Standard /p <args> redirected to /party <args>
+            else:
+                cancel event
+                execute player command "/party %arguments%"
+        
+        # If no arguments, let the event continue so the original /p runs
+        else:
+            stop
+
+    # Handle /pc command
+    if command is "pc":
+        cancel event
+        if arguments is set:
+            # Executes /p <arguments>
+            execute player command "/p %arguments%"
+        else:
+            execute player command "/p"

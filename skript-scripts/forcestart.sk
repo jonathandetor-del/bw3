@@ -1,0 +1,8 @@
+command /start:
+    trigger:
+        if player's world is "world":
+            send "&cYou cannot use this command in the Lobby!" to player
+        else:
+            execute player command "/bw start"
+            # Optional: Feedback message
+            # send "&aAttempting to start the game..." to player

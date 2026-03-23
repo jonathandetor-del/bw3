@@ -1,0 +1,19 @@
+command /bossbar <player>:
+    permission: admin.bossbar
+    trigger:
+        if arg-1 is online:
+            set {_targetWorld} to arg-1's world
+            
+            # Loop all players to find those in the target world
+            loop all players:
+                if loop-player's world is {_targetWorld}:
+                    # Change 'lp' to 'pex' or 'manuaddp' if you don't use LuckPerms
+                    execute console command "lp user %loop-player% permission set tab.bossbar.bedwars true"
+        
+# BULLETPROOF: Removing the permission (and thus the bar) on world change
+on world change:
+    execute console command "lp user %player% permission set tab.bossbar.bedwars false"
+
+# Cleanup on logout
+on quit:
+    execute console command "lp user %player% permission set tab.bossbar.bedwars false"

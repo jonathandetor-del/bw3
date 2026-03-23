@@ -1,8 +1,14 @@
 [
   {
-    "uuid": "c64fb935-7b38-4511-ae8d-b7ad55923249",
-    "name": "velorsi",
+    "uuid": "ce752b3d-ca5d-3ca8-a1d5-894105e959ac",
+    "name": "Xyrixs",
     "level": 4,
-    "bypassesPlayerLimit": true
+    "bypassesPlayerLimit": false
+  },
+  {
+    "uuid": "3fdff583-4153-3553-80da-d2b644d579d5",
+    "name": "Velorsi",
+    "level": 4,
+    "bypassesPlayerLimit": false
   }
 ]

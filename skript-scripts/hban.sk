@@ -1,0 +1,11 @@
+command /hban <offline player> <text>:
+    permission: watchdog.hban
+    permission message: &cYou don't have permission to execute this command!
+    usage: /hban <player> <reason>
+    trigger:
+        # Executes the tempban via console
+        execute console command "/tempban %arg-1% %arg-2% 10m"
+        
+        # Optional: Sends a confirmation to the staff member
+        send "&c&lWatchdog &8» &7You have issued a 10-minute ban to &f%arg-1% &7for: &f%arg-2%" to player
+        

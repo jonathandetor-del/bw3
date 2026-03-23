@@ -1,0 +1,283 @@
+# BedWars1058 by andrei1058. https://www.spigotmc.org/members/39904/
+# Documentation here: https://gitlab.com/andrei1058/BedWars1058/wikis/home
+
+serverType: MULTIARENA
+language: en
+disabled-languages:
+- your language iso here
+storeLink: https://www.spigotmc.org/resources/authors/39904/
+lobbyServer: hub
+enable-halloween-feature: true
+chat-settings:
+  global: false
+  format: true
+debug: false
+mark-leave-as-abandon: false
+party-settings:
+  enable-party-cmd: true
+  allow-parties: true
+  alessioDP-choose-arena-rank: 10
+scoreboard-settings:
+  sidebar:
+    enable-lobby-sidebar: true
+    enable-game-sidebar: true
+    title-refresh-interval: 6
+    placeholders-refresh-interval: 10
+  player-list:
+    format-lobby-list: false
+    format-waiting-list: true
+    format-starting-list: true
+    format-playing-list: true
+    format-restarting-list: true
+    names-refresh-interval: 1200
+  health:
+    enable: true
+    display-in-tab: true
+    animation-refresh-interval: 300
+  tab-header-footer:
+    enable: true
+    refresh-interval: 10
+rejoin-time: 300
+re-spawn-invulnerability: 4000
+bungee-settings:
+  games-before-restart: 30
+  restart-cmd: restart
+  auto-scale-clone-limit: 5
+  lobby-sockets:
+  - 0.0.0.0:2019
+  server-id: w120Y
+  bwp-time-out: 10000
+countdowns:
+  game-start-regular: 40
+  game-start-half-arena: 25
+  game-start-shortened: 5
+  game-restart: 45
+  player-re-spawn: 5
+  next-event-beds-destroy: 360
+  next-event-dragon-spawn: 360
+  next-event-game-end: 330
+shout-cmd-cooldown: 20
+server-ip: www.hellcore.in
+powered-by: HellCore CLoud
+allow-hunger-depletion:
+  waiting: false
+  ingame: false
+allow-fire-extinguish: true
+performance-settings:
+  heal-pool:
+    enable: true
+    seen-by-team-only: true
+  rotate-generators: true
+  spoil-tnt-players: true
+  paper-features: true
+tnt-jump-settings:
+  barycenter-alteration-in-y: 0.28
+  strength-reduction-constant: 2.0
+  y-axis-reduction-constant: 3.5
+  damage-self: 2
+  damage-teammates: 2
+  damage-others: 2
+blast-protection:
+  end-stone: 69.0
+  glass: 300.0
+  ray-blocked-by-glass: true
+tnt-prime-settings:
+  auto-ignite: true
+  fuse-ticks: 45
+fireball:
+  explosion-size: 3
+  speed-multiplier: 10
+  make-fire: false
+  knockback:
+    horizontal: 1
+    vertical: 0.75
+  cooldown: 0.5
+  damage:
+    self: 2.0
+    enemy: 2.0
+    teammates: 1.0
+database:
+  enable: false
+  host: localhost
+  port: 3306
+  database: bedwars
+  user: root
+  pass: changeme
+  ssl: false
+inventories:
+  disable-crafting-table: true
+  disable-enchanting-table: true
+  disable-furnace: true
+  disable-brewing-stand: true
+  disable-anvil: true
+arena-gui:
+  settings:
+    inv-size: 27
+    show-playing: true
+    use-slots: 10,11,12,13,14,15,16
+  waiting:
+    material: STAINED_GLASS_PANE
+    data: 5
+    enchanted: false
+  starting:
+    material: STAINED_GLASS_PANE
+    data: 4
+    enchanted: true
+  playing:
+    material: STAINED_GLASS_PANE
+    data: 14
+    enchanted: false
+  skipped-slot:
+    material: STAINED_GLASS_PANE
+    data: 15
+    enchanted: false
+stats-gui:
+  inv-size: 27
+  wins:
+    material: DIAMOND
+    data: 0
+    slot: 10
+  losses:
+    material: REDSTONE
+    data: 0
+    slot: 11
+  kills:
+    material: IRON_SWORD
+    data: 0
+    slot: 12
+  deaths:
+    material: SKULL_ITEM
+    data: 0
+    slot: 13
+  final-kills:
+    material: DIAMOND_SWORD
+    data: 0
+    slot: 14
+  final-deaths:
+    material: SKULL_ITEM
+    data: 1
+    slot: 15
+  beds-destroyed:
+    material: BED
+    data: 0
+    slot: 16
+  first-play:
+    material: STAINED_GLASS_PANE
+    data: 0
+    slot: 21
+  games-played:
+    material: CHEST
+    data: 0
+    slot: 22
+  last-play:
+    material: STAINED_GLASS_PANE
+    data: 0
+    slot: 23
+start-items-per-group:
+  Default:
+  - WOOD_SWORD
+allowed-commands:
+- shout
+- bw
+- leave
+- map
+- lobby
+- ver
+- bungee
+- bungeecord
+- version
+- proxy
+- party
+- friend
+- parties
+- friends
+- start
+- selfkick
+- wtfmap
+- p
+- pc
+- replay
+use-experimental-team-assigner: true
+enable-gen-split: true
+lobby-settings:
+  void-tp: true
+  void-height: 0
+game-end:
+  show-eliminated: true
+  teleport-eliminated: true
+  chat-top:
+    order-by: kills
+    hide-missing: true
+  sb-top:
+    order-by: kills
+    hide-missing: true
+ireball:
+  explosion-size: 1.6
+  speed-multiplier: 1.25
+  make-fire: true
+  knockback:
+    horizontal: 1.35
+    vertical: 0.85
+  cooldown: 1
+  damage:
+    self: 0.8
+    enemy: 2.0
+    teammates: 0.0
+lobby-items:
+  game-menu:
+    command: dm open games
+    material: COMPASS
+    data: 0
+    enchanted: false
+    slot: 0
+  player-stats:
+    command: dm open profile
+    material: SKULL_ITEM
+    data: 3
+    enchanted: false
+    slot: 1
+  bedwars-shop:
+    command: bwc menu
+    material: EMERALD
+    data: 0
+    enchanted: false
+    slot: 2
+  lobby-menu:
+    command: dm open settings
+    material: NETHER_STAR
+    data: 0
+    enchanted: false
+    slot: 8
+pre-game-items:
+  leave:
+    command: bw leave
+    material: BED
+    data: 0
+    enchanted: false
+    slot: 8
+spectator-items:
+  teleporter:
+    command: bw teleporter
+    material: SKULL_ITEM
+    data: 3
+    enchanted: false
+    slot: 0
+  leave:
+    command: bw leave
+    material: BED
+    data: 0
+    enchanted: false
+    slot: 8
+lobbyLoc: -39.54367079579095,72.0,0.46611643031138816,-87.64974975585938,-4.978251934051514,world
+arenaGroups:
+- 1v1
+- 4v4
+- Doubles
+- 4v4v4v4
+- 3v3v3v3
+- Solo
+- Voidless_Doubles
+- Voidless_4v4v4v4
+- PVP
+arenaGui:
+  settings: {}

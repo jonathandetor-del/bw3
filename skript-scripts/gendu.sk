@@ -1,0 +1,11 @@
+command /bansk <text> <text> <text> <text>:
+    permission: litebans.mod
+    permission message: &c&lWatchdog &8» &7You do not have permission to use this command.
+    usage: &cUsage: /bansk <player> <duration> <reason1> <reason2>
+    trigger:
+        # Executes the LiteBans ban command via console
+        # arg-1: Player | arg-2: Duration | arg-3 & 4: Reason parts
+        execute console command "ban %arg-1% %arg-2% %arg-3% %arg-4%"
+        
+        # Optional: Feedback to the staff member
+        send "&c&lWatchdog &8» &7You have executed a ban for &f%arg-1%&7." to player

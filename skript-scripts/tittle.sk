@@ -1,0 +1,4 @@
+on world change:
+    if player's world is not "world":
+        wait 1.5 seconds
+        send title "&aSuccessfully connected" with subtitle "&fTo a Game Server" to player for 3 seconds

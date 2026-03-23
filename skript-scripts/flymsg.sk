@@ -1,0 +1,13 @@
+command /fly:
+	permission: essentials.fly
+	trigger:
+		if world of player is not world "world":
+			execute player command "hehehe"
+			stop
+
+		if player is flying:
+			set player's flight mode to false
+			send "&cTurned off flight! ✈" to player
+		else:
+			set player's flight mode to true
+			send "&aTurned on flight! ✈" to player

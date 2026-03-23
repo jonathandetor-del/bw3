@@ -1,0 +1,4 @@
+on spawn:
+    if entity is a zombie or skeleton or creeper or spider:
+        # This applies the 'Silent' NBT tag which works in 1.8+
+        add "{Silent:1b}" to nbt of entity

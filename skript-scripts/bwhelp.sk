@@ -1,0 +1,19 @@
+on command "/bw":
+    # This checks if the player typed JUST /bw or /bw help
+    if arguments is not set:
+        set {_show} to true
+    else if arguments is "help":
+        set {_show} to true
+        
+    if {_show} is true:
+        cancel event
+        send "&3&m-----------------------------------------------------"
+        send "&6» &eBedwars help menu"
+        send " "
+        send "&7 - &a/bw stats"
+        send "&7 - &a/bw join <arena/group>"
+        send "&7 - &a/bw leave"
+        send "&7 - &a/bw lang"
+        send "&7 - &a/bw gui"
+        send "&7 - &a/bw start &b(vip)"
+        send "&3&m-----------------------------------------------------"

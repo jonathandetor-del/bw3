@@ -1,0 +1,19 @@
+# Detect when an entity is spawned
+on spawn:
+    # Ignore spawns in the lobby world
+    if world of event-entity is not "world":
+        
+        # Logic for Silverfish (Bedwars "Bedbug" style)
+        if event-entity is silverfish:
+            # Check if it was spawned by a player (snowball or egg)
+            # We use a slight delay or check distance to find the nearby player
+            loop players in radius 5 around event-entity:
+                send "&7This creature will fight for you for 18 seconds" to loop-player
+                stop loop
+                
+        # Logic for Iron Golem (Bedwars "Dream Defender" style)
+        if event-entity is iron golem:
+            # Most Bedwars plugins use spawn eggs for Golems
+            loop players in radius 7 around event-entity:
+                send "&7This creature will fight for you for 240 seconds" to loop-player
+                stop loop

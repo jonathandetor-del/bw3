@@ -1,0 +1,3 @@
+command /hub:
+	trigger:
+		execute player command "lobby"

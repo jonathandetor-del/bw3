@@ -1,0 +1,40 @@
+# This is the main configuration file for FlamePaper.
+# This configuration contains important settings that may affect server performance and gameplay.
+# Please review each option carefully before making changes.
+# 
+# If you need help with configuration or have questions about FlamePaper,
+# join our community Discord server.
+# 
+# Discord: https://discord.com/invite/gF36AT3
+
+config-version: 1
+adaptative-chunk-gc: true
+hopper:
+  fire-inventory-move-item-event: true
+  push-based: true
+book:
+  max_pages: 5
+settings:
+  save-player-data: true
+disconnect-spam:
+  enabled: true
+  addition: 5
+knockback:
+  friction: 2.0
+  horizontal: 0.38
+  vertical: 0.39
+  vertical-limit: 0.42
+  extra-horizontal: 0.45
+  extra-vertical: 0.09
+tps:
+  normal: 20
+  hibernate-enabled: true
+  hibernate: 1
+pearl-passthrough:
+  tripwire: true
+  fence_gate: true
+  slab: true
+allow-map-decorations: false
+disable-nether-roof-interaction: true
+durability-multiplier: 1.0
+instant-respawn: true

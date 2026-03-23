@@ -1,0 +1,16 @@
+on right click with fire charge:
+    set {_waited} to difference between {fb_cd::%player%} and now
+    
+    # Check for 0.5 second cooldown
+    if {_waited} is less than 0.5 seconds:
+        cancel event
+        
+        # 1. Action Bar prevents chat spam visible in your first screenshot
+        send action bar "&cFireball cooldown: &e1s" to player
+        
+        # 2. This replaces the 'update inventory' line that failed
+        # It forces the client to sync with the server
+        execute console command "inventoryupdate %player%"
+        stop
+
+    set {fb_cd::%player%} to now

@@ -1,0 +1,4 @@
+command /bwp:
+    trigger:
+        cancel event
+        execute player command "queue bwprac"

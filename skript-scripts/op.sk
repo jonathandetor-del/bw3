@@ -1,0 +1,11 @@
+# OP Command Guard
+on command "/op":
+    if sender is a player:
+        # Even if they are already OP, this blocks them from using the command 
+        # unless they have the specific lp.owner permission node.
+        if player does not have permission "lp.owner":
+            cancel event
+            send "&cI'm sorry, but you do not have permission to use the OP command." to player
+            stop
+    # Console remains unaffected
+    

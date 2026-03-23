@@ -1,0 +1,4 @@
+on world change:
+    wait 1 tick
+    if player's world is "world":
+        set player's gamemode to adventure

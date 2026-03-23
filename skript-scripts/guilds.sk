@@ -1,0 +1,16 @@
+on command "/guild":
+    # Check if the player ONLY typed /guild (no arguments)
+    if arguments is not set:
+        # Cancel the original command so it doesn't loop
+        cancel event
+        # Force the menu command instead
+        execute player command "/guild menu"
+on command "/guilds":
+    # Check if the player ONLY typed /guild (no arguments)
+    if arguments is not set:
+        # Cancel the original command so it doesn't loop
+        cancel event
+        # Force the menu command instead
+        execute player command "/guild menu"
+        
+        

@@ -1,9 +1,0 @@
-# Enforce gamerules on lobby world at startup
-# /gamerule from console applies to the default world (lobby)
-# BedWars manages its own death/inventory logic in arena worlds
-on load:
-  wait 5 seconds
-  execute console command "gamerule keepInventory true"
-  execute console command "gamerule doDaylightCycle false"
-  execute console command "gamerule doWeatherCycle false"
-  execute console command "time set 6000"

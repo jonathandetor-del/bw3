@@ -13,7 +13,7 @@ ENV MINECRAFT_PORT=25565 \
     TZ=UTC
 
 # FlamePaper is a performance-focused 1.8.8 Paper fork.
-RUN apk add --no-cache bash curl tar ca-certificates
+RUN apk add --no-cache bash curl tar ca-certificates unzip
 
 # Install File Browser (web file manager)
 ARG FILEBROWSER_VERSION=v2.31.2
@@ -43,31 +43,36 @@ COPY --chown=minecraft:minecraft server.properties /server/server.properties
 COPY --chown=minecraft:minecraft bukkit.yml /server/bukkit.yml
 COPY --chown=minecraft:minecraft spigot.yml /server/spigot.yml
 COPY --chown=minecraft:minecraft paper.yml /server/paper.yml
+COPY --chown=minecraft:minecraft pandaspigot.yml /server/pandaspigot.yml
+COPY --chown=minecraft:minecraft flamepaper.yml /server/flamepaper.yml
 COPY --chown=minecraft:minecraft commands.yml /server/commands.yml
+COPY --chown=minecraft:minecraft help.yml /server/help.yml
+COPY --chown=minecraft:minecraft permissions.yml /server/permissions.yml
+COPY --chown=minecraft:minecraft wepif.yml /server/wepif.yml
 COPY --chown=minecraft:minecraft eula.txt /server/eula.txt
 COPY --chown=minecraft:minecraft start.sh /server/start.sh
 
 # Copy all plugin JARs (BedWars + companions)
 COPY --chown=minecraft:minecraft plugins-extra/*.jar /server/plugins/
 
-# Copy Skript scripts (chat formatting, /msg, /r, mention sounds)
+# Copy Skript scripts
 COPY --chown=minecraft:minecraft skript-scripts/ /server/plugins/Skript/scripts/
 
-# Copy FastLogin config (autoRegister for premium players)
-COPY --chown=minecraft:minecraft fastlogin-config/ /server/plugins/FastLogin/
+# Copy BedWars1058 config (arenas, languages, generators, sounds, etc.)
+COPY --chown=minecraft:minecraft bedwars-config/ /server/plugins/BedWars1058/
 
-# Copy AuthMe config (no forced registration — FastLogin handles premium)
-COPY --chown=minecraft:minecraft authme-config/ /server/plugins/AuthMe/
-
-# Copy LuckPerms config + pre-configured groups/users (YAML storage)
+# Copy LuckPerms config
 COPY --chown=minecraft:minecraft luckperms-config/config.yml /server/plugins/LuckPerms/config.yml
-COPY --chown=minecraft:minecraft luckperms-config/yaml-storage/ /server/plugins/LuckPerms/yaml-storage/
 
-# Copy lobby world (Winter Lobby BW — 1.8-compatible)
-COPY --chown=minecraft:minecraft lobby/ /server/lobby/
+# Copy TAB config
+COPY --chown=minecraft:minecraft tab-config/config.yml /server/plugins/TAB/config.yml
 
-# Copy arena maps (BedWars1058 will manage these)
-COPY --chown=minecraft:minecraft world/maps/ /server/maps/
+# Copy main world (lobby — m160bw's "world" directory)
+COPY --chown=minecraft:minecraft main-world/ /server/world/
+
+# Arena map worlds (~1GB) are uploaded via File Browser at runtime.
+# BedWars1058 arena configs reference them by folder name.
+RUN mkdir -p /server/maps
 
 # Copy ops.json
 COPY --chown=minecraft:minecraft ops.json /server/ops.json

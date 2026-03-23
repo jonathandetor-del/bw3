@@ -1,0 +1,8 @@
+command /surall <player>:
+    permission: admin.surall
+    trigger:
+        if arg-1 is online:
+            set {_targetWorld} to arg-1's world
+            loop all players:
+                if loop-player's world is {_targetWorld}:
+                    set loop-player's gamemode to adventure

@@ -1,0 +1,20 @@
+on command "/pg" or "/privategames":
+    # Checks if the command was just /pg or /privategames or /pg help
+    if arguments is not set:
+        set {_showPG} to true
+    else if arguments is "help":
+        set {_showPG} to true
+        
+    if {_showPG} is true:
+        cancel event
+        send "&3&m-----------------------------------------------------"
+        send "&6» &ePrivate Games help menu"
+        send " "
+        send "&7 - &a/pg gui &8- &7Open the private games menu"
+        send "&7 - &a/pg enable &8- &7Enable private games"
+        send "&7 - &a/pg disable &8- &7Disable private games"
+        send "&7 - &a/pg join <player> &8- &7Join a player's private game"
+        send "&7 - &a/pg accept &8- &7Accept the last join request"
+        send "&7 - &a/pg deny &8- &7Deny the last join request"
+        send "&3&m-----------------------------------------------------"
+        

@@ -86,7 +86,7 @@ sync_server_runtime_files() {
         cp -f /server/server.properties /data/server.properties
     fi
 
-    for f in bukkit.yml spigot.yml paper.yml commands.yml eula.txt ops.json; do
+    for f in bukkit.yml spigot.yml paper.yml pandaspigot.yml flamepaper.yml commands.yml help.yml permissions.yml wepif.yml eula.txt ops.json; do
         if [ -f "/server/$f" ] && [ ! -f "/data/$f" ]; then
             cp -a "/server/$f" "/data/$f"
         fi
@@ -98,22 +98,49 @@ sync_server_runtime_files() {
         cp -f /server/plugins/Skript/scripts/*.sk /data/plugins/Skript/scripts/ 2>/dev/null || true
     fi
 
-    # Always update AuthMe config from image (force-sync so forceLogin stays disabled).
-    if [ -d /server/plugins/AuthMe ]; then
-        mkdir -p /data/plugins/AuthMe
-        cp -f /server/plugins/AuthMe/config.yml /data/plugins/AuthMe/config.yml 2>/dev/null || true
+    # Seed BedWars1058 configs from image (arenas, languages, sounds, etc.)
+    if [ -d /server/plugins/BedWars1058 ]; then
+        mkdir -p /data/plugins/BedWars1058
+        # Only seed config files that don't exist yet (preserve runtime changes)
+        for f in /server/plugins/BedWars1058/*.yml; do
+            [ -f "$f" ] || continue
+            dest="/data/plugins/BedWars1058/$(basename "$f")"
+            if [ ! -f "$dest" ]; then
+                cp -a "$f" "$dest"
+                echo "Seeded BedWars config: $(basename "$f")"
+            fi
+        done
+        # Always sync arena definitions from image
+        if [ -d /server/plugins/BedWars1058/Arenas ]; then
+            mkdir -p /data/plugins/BedWars1058/Arenas
+            cp -f /server/plugins/BedWars1058/Arenas/*.yml /data/plugins/BedWars1058/Arenas/ 2>/dev/null || true
+            echo "Synced BedWars arena configs from image"
+        fi
+        # Seed languages if missing
+        if [ -d /server/plugins/BedWars1058/Languages ] && [ ! -d /data/plugins/BedWars1058/Languages ]; then
+            cp -a /server/plugins/BedWars1058/Languages /data/plugins/BedWars1058/Languages
+            echo "Seeded BedWars languages from image"
+        fi
     fi
 
-    # Always update FastLogin config from image (premium detection settings).
-    if [ -d /server/plugins/FastLogin ]; then
-        mkdir -p /data/plugins/FastLogin
-        cp -f /server/plugins/FastLogin/config.yml /data/plugins/FastLogin/config.yml 2>/dev/null || true
+    # Seed LuckPerms config from image if missing
+    if [ -f /server/plugins/LuckPerms/config.yml ] && [ ! -f /data/plugins/LuckPerms/config.yml ]; then
+        mkdir -p /data/plugins/LuckPerms
+        cp -a /server/plugins/LuckPerms/config.yml /data/plugins/LuckPerms/config.yml
+        echo "Seeded LuckPerms config from image"
     fi
 
-    # Never overwrite existing lobby world to preserve spawn/settings.
-    if [ -d /server/lobby ] && [ ! -d /data/lobby ]; then
-        cp -a /server/lobby /data/lobby
-        echo "Seeded missing lobby world from image."
+    # Seed TAB config from image if missing
+    if [ -f /server/plugins/TAB/config.yml ] && [ ! -f /data/plugins/TAB/config.yml ]; then
+        mkdir -p /data/plugins/TAB
+        cp -a /server/plugins/TAB/config.yml /data/plugins/TAB/config.yml
+        echo "Seeded TAB config from image"
+    fi
+
+    # Seed main world from image if missing (level-name=world)
+    if [ -d /server/world ] && [ ! -d /data/world ]; then
+        cp -a /server/world /data/world
+        echo "Seeded main world from image."
     fi
 }
 
@@ -209,18 +236,8 @@ patch_bedwars_config_migrations() {
     remove_yaml_top_level_block "$config_file" "melee-knockback"
     echo "Removed melee-knockback section from BedWars config (plugin will regenerate defaults)"
 
-    # Force server-ip to bistarwars.com (addDefault won't overwrite existing value)
-    if grep -q "^server-ip:" "$config_file"; then
-        sed -i 's|^server-ip:.*|server-ip: bistarwars.com|' "$config_file"
-    else
-        echo 'server-ip: bistarwars.com' >> "$config_file"
-    fi
-    echo "Set server-ip to bistarwars.com"
-
-    # Enable BedWars tab formatting for all game states so format-tab in messages_en.yml is used.
-    sed -i 's|format-waiting-list: false|format-waiting-list: true|' "$config_file"
-    sed -i 's|format-starting-list: false|format-starting-list: true|' "$config_file"
-    sed -i 's|format-playing-list: false|format-playing-list: true|' "$config_file"
+    # Remove server-ip override so the value from the seeded config is preserved
+    # (m160bw config sets this to the correct domain)
     sed -i 's|format-restarting-list: false|format-restarting-list: true|' "$config_file"
     echo "Enabled BedWars player-list formatting for all game states"
 
@@ -238,13 +255,12 @@ patch_bedwars_config_migrations() {
         echo "Deleted shop.yml — plugin will regenerate with updated defaults"
     fi
 
-    # Set lobby location (X=-33.357, Y=71.0, Z=1.544, Yaw=-91.6, Pitch=3.3, World=lobby)
-    # Format: x,y,z,yaw,pitch,worldName
+    # Lobby location from m160bw: X=-39.54, Y=72.0, Z=0.47, Yaw=-87.65, Pitch=-4.98, World=world
     if ! grep -q "^lobbyLoc:" "$config_file"; then
-        echo 'lobbyLoc: "-33.357,71.0,1.544,-91.6,3.3,lobby"' >> "$config_file"
+        echo 'lobbyLoc: "-39.54,72.0,0.47,-87.65,-4.98,world"' >> "$config_file"
         echo "Set BedWars lobby location"
     else
-        sed -i 's|^lobbyLoc:.*|lobbyLoc: "-33.357,71.0,1.544,-91.6,3.3,lobby"|' "$config_file"
+        sed -i 's|^lobbyLoc:.*|lobbyLoc: "-39.54,72.0,0.47,-87.65,-4.98,world"|' "$config_file"
         echo "Updated BedWars lobby location"
     fi
 }
@@ -354,37 +370,49 @@ LANGEOF
     echo "Seeded BedWars messages_en.yml with chat + tab format overrides"
 }
 
+# ---- Auto-extract arena map zips uploaded via File Browser ----
+# Upload a zip containing arena world folders to /data/ and it will be extracted on next restart.
+# After extraction the zip is renamed to .zip.done so it won't be extracted again.
+# Handles both flat zips (airshow/, amazon/...) and wrapped zips (m160bw/airshow/, m160bw/amazon/...).
+extract_uploaded_zips() {
+    for zipfile in /data/arenas.zip /data/maps.zip /data/arena-maps.zip /data/*.zip; do
+        [ -f "$zipfile" ] || continue
+        # Skip non-arena zips (File Browser db, etc.)
+        case "$(basename "$zipfile")" in
+            .filebrowser.*|filebrowser.*) continue ;;
+        esac
+        echo "Found uploaded zip: $zipfile — extracting..."
+        tmpdir="/data/.zip-extract-$$"
+        mkdir -p "$tmpdir"
+        unzip -o -q "$zipfile" -d "$tmpdir" 2>/dev/null
+        if [ $? -eq 0 ]; then
+            # If zip extracted into a single subfolder, move contents up
+            entries=$(ls "$tmpdir" 2>/dev/null)
+            entry_count=$(echo "$entries" | wc -w)
+            single_dir="$tmpdir/$entries"
+            if [ "$entry_count" -eq 1 ] && [ -d "$single_dir" ]; then
+                echo "Detected wrapper folder '$entries' — moving contents up to /data/"
+                cp -a "$single_dir"/* /data/ 2>/dev/null || true
+                cp -a "$single_dir"/.* /data/ 2>/dev/null || true
+            else
+                cp -a "$tmpdir"/* /data/ 2>/dev/null || true
+            fi
+            rm -rf "$tmpdir"
+            mv "$zipfile" "${zipfile}.done"
+            echo "Extracted and renamed to ${zipfile}.done"
+        else
+            rm -rf "$tmpdir"
+            echo "WARNING: Failed to extract $zipfile"
+        fi
+    done
+}
+
 if [ -d /data ] && [ -w /data ]; then
+    extract_uploaded_zips
     if [ "$IMAGE_VERSION" != "$DATA_VERSION" ]; then
         echo "Updating /data from image (image=$IMAGE_VERSION, data=$DATA_VERSION)..."
-        # Keep FastLogin premium cache by default so premium users stay auto-logged.
-        # Set RESET_FASTLOGIN_DB=true only when you intentionally want to re-verify all players.
-        if [ "${RESET_FASTLOGIN_DB:-false}" = "true" ]; then
-            rm -f /data/plugins/FastLogin/FastLogin.db
-            rm -f /data/plugins/FastLogin/*.db
-            echo "RESET_FASTLOGIN_DB=true -> cleared FastLogin premium cache"
-        fi
-        # Remove old FastLogin.jar (replaced by FastLoginBukkit.jar)
-        rm -f /data/plugins/FastLogin.jar
-        # Clear old LuckPerms H2 database so it uses YAML storage
-        rm -f /data/plugins/LuckPerms/*.db
-        rm -f /data/plugins/LuckPerms/luckperms-h2*
-        # Keep AuthMe registration database by default.
-        # Set RESET_AUTHME_DB=true only when you intentionally want a full reset.
-        if [ "${RESET_AUTHME_DB:-false}" = "true" ]; then
-            rm -f /data/plugins/AuthMe/authme.db
-            echo "RESET_AUTHME_DB=true -> cleared AuthMe database"
-        fi
         # Update jars/binaries while preserving existing runtime settings and worlds.
         sync_server_runtime_files
-        # Remove TAB plugin and its data (replaced by BedWars built-in tab formatting).
-        rm -f /data/plugins/TAB\ v5.5.0.jar /data/plugins/TAB.jar
-        rm -rf /data/plugins/TAB
-        # Delete BedWars messages + shop so new defaults regenerate from updated jar.
-        # config.yml is preserved to keep NPC locations and player-set preferences.
-        rm -f /data/plugins/BedWars1058/Languages/messages_en.yml
-        rm -f /data/plugins/BedWars1058/shop.yml
-        echo "Cleaned TAB plugin + reset BedWars messages/shop for regeneration"
         # Import missing map templates/worlds without overwriting existing ones.
         import_arena_maps refresh
         cp /server/.image-version /data/.image-version

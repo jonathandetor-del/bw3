@@ -18,3 +18,19 @@ desktop.ini
 
 # Backups
 *.zip.bak
+
+# m160bw source archive (already extracted to repo)
+m160bw.tar/
+m160bw.tar.gz
+*.tar.gz
+
+# Legacy directories (replaced by arena-maps/, main-world/)
+world/
+lobby/
+
+# Arena maps (~1GB) — uploaded via File Browser at runtime
+arena-maps/
+
+# Old plugin configs (replaced by m160bw equivalents)
+authme-config/
+fastlogin-config/

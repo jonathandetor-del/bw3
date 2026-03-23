@@ -1,0 +1,45 @@
+command /skban <offlineplayer> <text>:
+    usage: &cUsage: /skban <player> <reason>
+    permission: vulcan.admin
+    permission message: &cYou do not have permission to execute punishments.
+    trigger:
+        # Increment the punishment count for the player's UUID
+        add 1 to {punishments::%uuid of arg-1%}
+        set {_lvl} to {punishments::%uuid of arg-1%}
+        
+        # Scaling logic for the ban duration
+        if {_lvl} is 1:
+            set {_duration} to "1m"
+        else if {_lvl} is 2:
+            set {_duration} to "5m"
+        else if {_lvl} is 3:
+            set {_duration} to "10m"
+        else if {_lvl} is 4:
+            set {_duration} to "30m"
+        else if {_lvl} is 5:
+            set {_duration} to "1h"
+        else if {_lvl} is 6:
+            set {_duration} to "12h"
+        else if {_lvl} is 7:
+            set {_duration} to "1d"
+        else if {_lvl} is 8:
+            set {_duration} to "3d"
+        else if {_lvl} is 9:
+            set {_duration} to "7d"
+        else if {_lvl} is 10:
+            set {_duration} to "14d"
+        else if {_lvl} is 11:
+            set {_duration} to "30d"
+        else if {_lvl} is 12:
+            set {_duration} to "49d"
+        else if {_lvl} is 13:
+            set {_duration} to "60d"
+        else:
+            # Reaches the permanent ban (or very long term) for level 14+
+            set {_duration} to "90d"
+
+        # Execute the ban through console
+        execute console command "tempban %arg-1% %{_duration}% %arg-2%"
+        
+        # Public broadcast
+        broadcast "&c&lWatchDog &8» &f%arg-1% &7has been banned for &c%{_duration}% &7due to &c%arg-2%&7."

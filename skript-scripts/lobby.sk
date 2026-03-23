@@ -1,0 +1,8 @@
+command /lobby:
+    trigger:
+        if world of player is "world":
+            execute player command "labby"
+        else:
+            send "&aSending you to bedwars lobby!" to player
+            wait 0.5 seconds
+            execute player command "bw leave"
