@@ -386,7 +386,7 @@ extract_uploaded_archives() {
         mkdir -p "$tmpdir"
         case "$archive" in
             *.zip) unzip -o -q "$archive" -d "$tmpdir" 2>/dev/null ;;
-            *.rar) unrar x -o+ -y "$archive" "$tmpdir/" 2>/dev/null ;;
+            *.rar) 7z x -o"$tmpdir" -y "$archive" >/dev/null 2>&1 ;;
         esac
         if [ $? -eq 0 ]; then
             # If archive extracted into a single subfolder, move contents up
