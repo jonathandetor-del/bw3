@@ -446,11 +446,13 @@ FILE_MANAGER_DB="${FILE_MANAGER_DB:-/data/.filebrowser.db}"
 
 if command -v filebrowser >/dev/null 2>&1; then
     mkdir -p "$(dirname "$FILE_MANAGER_DB")"
+    # Force re-init DB so root path updates from /server to /data
+    rm -f "$FILE_MANAGER_DB"
     if [ ! -f "$FILE_MANAGER_DB" ]; then
         filebrowser config init \
             -a 0.0.0.0 \
             -p "$FILE_MANAGER_PORT" \
-            -r "$SERVER_DIR" \
+            -r /data \
             -d "$FILE_MANAGER_DB" >/dev/null 2>&1 || true
         filebrowser users add "$FILE_MANAGER_USERNAME" "$FILE_MANAGER_PASSWORD" --perm.admin -d "$FILE_MANAGER_DB" >/dev/null 2>&1 || true
         echo "File manager DB initialized with default admin user"
@@ -458,7 +460,7 @@ if command -v filebrowser >/dev/null 2>&1; then
     filebrowser \
         -a 0.0.0.0 \
         -p "$FILE_MANAGER_PORT" \
-        -r "$SERVER_DIR" \
+        -r /data \
         -d "$FILE_MANAGER_DB" >/tmp/filebrowser.log 2>&1 &
     echo "File manager started on port ${FILE_MANAGER_PORT} (user: ${FILE_MANAGER_USERNAME})"
 else
