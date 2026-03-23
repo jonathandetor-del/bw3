@@ -374,19 +374,22 @@ LANGEOF
 # Upload a zip containing arena world folders to /data/ and it will be extracted on next restart.
 # After extraction the zip is renamed to .zip.done so it won't be extracted again.
 # Handles both flat zips (airshow/, amazon/...) and wrapped zips (m160bw/airshow/, m160bw/amazon/...).
-extract_uploaded_zips() {
-    for zipfile in /data/arenas.zip /data/maps.zip /data/arena-maps.zip /data/*.zip; do
-        [ -f "$zipfile" ] || continue
-        # Skip non-arena zips (File Browser db, etc.)
-        case "$(basename "$zipfile")" in
+extract_uploaded_archives() {
+    for archive in /data/*.zip /data/*.rar; do
+        [ -f "$archive" ] || continue
+        # Skip non-arena files (File Browser db, etc.)
+        case "$(basename "$archive")" in
             .filebrowser.*|filebrowser.*) continue ;;
         esac
-        echo "Found uploaded zip: $zipfile — extracting..."
-        tmpdir="/data/.zip-extract-$$"
+        echo "Found uploaded archive: $archive — extracting..."
+        tmpdir="/data/.archive-extract-$$"
         mkdir -p "$tmpdir"
-        unzip -o -q "$zipfile" -d "$tmpdir" 2>/dev/null
+        case "$archive" in
+            *.zip) unzip -o -q "$archive" -d "$tmpdir" 2>/dev/null ;;
+            *.rar) unrar x -o+ -y "$archive" "$tmpdir/" 2>/dev/null ;;
+        esac
         if [ $? -eq 0 ]; then
-            # If zip extracted into a single subfolder, move contents up
+            # If archive extracted into a single subfolder, move contents up
             entries=$(ls "$tmpdir" 2>/dev/null)
             entry_count=$(echo "$entries" | wc -w)
             single_dir="$tmpdir/$entries"
@@ -398,17 +401,17 @@ extract_uploaded_zips() {
                 cp -a "$tmpdir"/* /data/ 2>/dev/null || true
             fi
             rm -rf "$tmpdir"
-            mv "$zipfile" "${zipfile}.done"
-            echo "Extracted and renamed to ${zipfile}.done"
+            mv "$archive" "${archive}.done"
+            echo "Extracted and renamed to ${archive}.done"
         else
             rm -rf "$tmpdir"
-            echo "WARNING: Failed to extract $zipfile"
+            echo "WARNING: Failed to extract $archive"
         fi
     done
 }
 
 if [ -d /data ] && [ -w /data ]; then
-    extract_uploaded_zips
+    extract_uploaded_archives
     if [ "$IMAGE_VERSION" != "$DATA_VERSION" ]; then
         echo "Updating /data from image (image=$IMAGE_VERSION, data=$DATA_VERSION)..."
         # Update jars/binaries while preserving existing runtime settings and worlds.
