@@ -25,45 +25,37 @@ DATA_VERSION=$(cat /data/.image-version 2>/dev/null || echo "none")
 
 import_arena_maps() {
     mode="$1"
-    if [ ! -d /server/maps ]; then
-        return
-    fi
-
     mkdir -p /data/plugins/BedWars1058/Arenas
     declare -A imported_map_names
     imported_count=0
 
-    while IFS= read -r -d '' level_file; do
-        map_dir="$(dirname "$level_file")"
-        raw_name="$(basename "$map_dir")"
-        map_name="$(echo "$raw_name" | tr '[:upper:]' '[:lower:]')"
-        target_dir="/data/plugins/BedWars1058/Arenas/$map_name"
-        world_target_dir="/data/$map_name"
+    # Search both /server/maps (from Docker image) and /data/maps (from uploaded world.rar)
+    for search_root in /server/maps /data/maps; do
+        [ -d "$search_root" ] || continue
+        echo "Scanning $search_root for arena map worlds..."
 
-        # Avoid accidental collisions if two nested maps share a name.
-        if [ -n "${imported_map_names[$map_name]}" ]; then
-            echo "Skipped duplicate arena map name: $map_name (from $map_dir)"
-            continue
-        fi
-        imported_map_names[$map_name]=1
+        while IFS= read -r -d '' level_file; do
+            map_dir="$(dirname "$level_file")"
+            raw_name="$(basename "$map_dir")"
+            map_name="$(echo "$raw_name" | tr '[:upper:]' '[:lower:]')"
+            world_target_dir="/data/$map_name"
 
-        if [ ! -d "$target_dir" ]; then
-            cp -a "$map_dir" "$target_dir"
-            if [ "$raw_name" != "$map_name" ]; then
-                echo "Imported missing arena map: $raw_name -> $map_name"
-            else
-                echo "Imported missing arena map: $map_name"
+            # Avoid accidental collisions if two nested maps share a name.
+            if [ -n "${imported_map_names[$map_name]}" ]; then
+                echo "Skipped duplicate arena map name: $map_name (from $map_dir)"
+                continue
             fi
-            imported_count=$((imported_count + 1))
-        fi
+            imported_map_names[$map_name]=1
 
-        if [ ! -d "$world_target_dir" ]; then
-            cp -a "$map_dir" "$world_target_dir"
-            echo "Imported missing world folder for map: $map_name"
-        fi
-    done < <(find /server/maps -type f -name 'level.dat' -print0)
+            if [ ! -d "$world_target_dir" ]; then
+                cp -a "$map_dir" "$world_target_dir"
+                echo "Imported missing world folder for map: $map_name"
+                imported_count=$((imported_count + 1))
+            fi
+        done < <(find "$search_root" -type f -name 'level.dat' -print0)
+    done
 
-    echo "Arena import ($mode) complete: $imported_count missing arena templates copied."
+    echo "Arena import ($mode) complete: $imported_count map worlds copied to /data/."
 }
 
 sync_server_runtime_files() {
