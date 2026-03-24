@@ -21,10 +21,13 @@
 package com.andrei1058.bedwars.listeners.joinhandler;
 
 import com.andrei1058.bedwars.BedWars;
+import com.andrei1058.bedwars.api.arena.GameState;
+import com.andrei1058.bedwars.api.arena.IArena;
 import com.andrei1058.bedwars.arena.Arena;
 import com.andrei1058.bedwars.arena.ReJoin;
 import com.andrei1058.bedwars.sidebar.SidebarService;
 import com.andrei1058.bedwars.support.paper.TeleportManager;
+import com.andrei1058.bedwars.support.party.Internal;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -74,6 +77,30 @@ public class JoinListenerMultiArena implements Listener {
                     return;
                 }
                 reJoin.destroy(false);
+            }
+
+            // Handle party reconnect (grace period)
+            if (BedWars.getParty().isInternal()) {
+                if (Internal.handleReconnect(p)) {
+                    // Player reconnected to their party — check if leader is in an arena
+                    Player owner = BedWars.getParty().getOwner(p);
+                    if (owner != null && owner != p) {
+                        IArena leaderArena = Arena.getArenaByPlayer(owner);
+                        if (leaderArena != null) {
+                            if (leaderArena.getStatus() == GameState.waiting || leaderArena.getStatus() == GameState.starting) {
+                                // Auto-join the waiting/starting arena
+                                if (leaderArena.getPlayers().size() < leaderArena.getMaxPlayers()) {
+                                    leaderArena.addPlayer(p, true);
+                                    p.sendMessage("\u00A79Party \u00A78> \u00A77Auto-joining your party leader's game...");
+                                }
+                            } else if (leaderArena.getStatus() == GameState.playing) {
+                                // Auto-spectate the active game
+                                leaderArena.addSpectator(p, false, null);
+                                p.sendMessage("\u00A79Party \u00A78> \u00A77Your party leader is in a game. Joining as spectator...");
+                            }
+                        }
+                    }
+                }
             }
         }, 14L);
 

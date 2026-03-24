@@ -20,6 +20,7 @@
 
 package com.andrei1058.bedwars.commands.party;
 
+import com.andrei1058.bedwars.BedWars;
 import com.andrei1058.bedwars.api.arena.GameState;
 import com.andrei1058.bedwars.api.arena.IArena;
 import com.andrei1058.bedwars.api.language.Messages;
@@ -27,6 +28,7 @@ import com.andrei1058.bedwars.arena.Arena;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
+import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.command.defaults.BukkitCommand;
@@ -48,6 +50,8 @@ public class PartyCommand extends BukkitCommand {
 
     //owner, target
     private static HashMap<UUID, UUID> partySessionRequest = new HashMap<>();
+    private static final HashMap<UUID, Long> warpCooldowns = new HashMap<>();
+    private static final long WARP_COOLDOWN_MS = 3000L;
 
     @Override
     public boolean execute(CommandSender s, String c, String[] args) {
@@ -158,6 +162,7 @@ public class PartyCommand extends BukkitCommand {
                 }
                 getParty().disband(p);
                 break;
+            case "kick":
             case "remove":
                 if (args.length == 1) {
                     p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_REMOVE_USAGE));
@@ -178,6 +183,7 @@ public class PartyCommand extends BukkitCommand {
                 }
                 getParty().removePlayer(p, target);
                 break;
+            case "transfer":
             case "promote":
                 if (!getParty().hasParty(p)) {
                     p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_GENERAL_DENIED_NOT_IN_PARTY));
@@ -228,26 +234,69 @@ public class PartyCommand extends BukkitCommand {
                     p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_INSUFFICIENT_PERMISSIONS));
                     return true;
                 }
+                // Cooldown check
+                long now = System.currentTimeMillis();
+                Long lastWarp = warpCooldowns.get(p.getUniqueId());
+                if (lastWarp != null && now - lastWarp < WARP_COOLDOWN_MS) {
+                    long remaining = (WARP_COOLDOWN_MS - (now - lastWarp)) / 1000 + 1;
+                    p.sendMessage("\u00A79Party \u00A78> \u00A7cWarp is on cooldown! Wait " + remaining + "s.");
+                    return true;
+                }
                 IArena ownerArena = Arena.getArenaByPlayer(p);
-                if (ownerArena == null || (ownerArena.getStatus() != GameState.waiting && ownerArena.getStatus() != GameState.starting)) {
+                if (ownerArena == null) {
                     p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_WARP_NOT_IN_ARENA));
                     return true;
                 }
-                p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_WARP_SUCCESS));
-                for (Player mem : getParty().getMembers(p)) {
+                boolean isPlaying = (ownerArena.getStatus() == GameState.playing);
+                boolean isWaiting = (ownerArena.getStatus() == GameState.waiting || ownerArena.getStatus() == GameState.starting);
+                if (!isPlaying && !isWaiting) {
+                    p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_WARP_NOT_IN_ARENA));
+                    return true;
+                }
+                // Gather eligible members (skip owner, skip those already in the same arena)
+                List<Player> members = getParty().getMembers(p);
+                int neededSlots = 0;
+                for (Player mem : members) {
                     if (mem == p) continue;
                     IArena memArena = Arena.getArenaByPlayer(mem);
+                    if (memArena == ownerArena) continue;
+                    neededSlots++;
+                }
+                // Capacity check for waiting/starting arenas (all-or-none)
+                if (isWaiting && neededSlots > 0) {
+                    int available = ownerArena.getMaxPlayers() - ownerArena.getPlayers().size();
+                    if (neededSlots > available) {
+                        p.sendMessage("\u00A79Party \u00A78> \u00A7cNot enough space! Need " + neededSlots + " slots but only " + available + " available.");
+                        return true;
+                    }
+                }
+                // Set cooldown
+                warpCooldowns.put(p.getUniqueId(), now);
+                // Warp all members
+                Sound warpSound = Sound.valueOf(BedWars.getForCurrentVersion("ENDERMAN_TELEPORT", "ENTITY_ENDERMAN_TELEPORT", "ENTITY_ENDERMAN_TELEPORT"));
+                for (Player mem : members) {
+                    if (mem == p) continue;
+                    IArena memArena = Arena.getArenaByPlayer(mem);
+                    if (memArena == ownerArena) continue;
+                    // Remove from current arena if any
                     if (memArena != null) {
-                        if (memArena == ownerArena) continue;
                         if (memArena.isPlayer(mem)) {
                             memArena.removePlayer(mem, false);
                         } else if (memArena.isSpectator(mem)) {
                             memArena.removeSpectator(mem, false);
                         }
                     }
-                    ownerArena.addPlayer(mem, true);
+                    if (isWaiting) {
+                        ownerArena.addPlayer(mem, true);
+                    } else {
+                        // Playing — join as spectator
+                        ownerArena.addSpectator(mem, false, null);
+                    }
                     mem.sendMessage(getMsg(mem, Messages.COMMAND_PARTY_WARP_WARPED).replace("{owner}", p.getName()));
+                    mem.playSound(mem.getLocation(), warpSound, 1f, 1f);
                 }
+                p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_WARP_SUCCESS));
+                p.playSound(p.getLocation(), warpSound, 1f, 1f);
                 break;
             default:
                 sendPartyCmds(p);

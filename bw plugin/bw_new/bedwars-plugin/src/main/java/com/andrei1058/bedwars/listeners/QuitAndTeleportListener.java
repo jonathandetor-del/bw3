@@ -31,6 +31,7 @@ import com.andrei1058.bedwars.arena.SetupSession;
 import com.andrei1058.bedwars.arena.team.BedWarsTeam;
 import com.andrei1058.bedwars.commands.bedwars.subcmds.regular.CmdStats;
 import com.andrei1058.bedwars.sidebar.SidebarService;
+import com.andrei1058.bedwars.support.party.Internal;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -80,9 +81,11 @@ public class QuitAndTeleportListener implements Listener {
         if (getParty().isInternal()) {
             if (getParty().hasParty(p)) {
                 if (!Arena.restartingPlayers.remove(p.getUniqueId())) {
-                    getParty().removeFromParty(p);
+                    // Use grace period instead of immediate removal
+                    Internal.handlePlayerQuit(p);
                 }
             } else {
+                Internal.cleanupPlayer(p.getUniqueId());
                 Arena.restartingPlayers.remove(p.getUniqueId());
             }
         } else {

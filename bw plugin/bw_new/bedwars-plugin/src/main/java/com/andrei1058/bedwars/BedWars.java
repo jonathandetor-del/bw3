@@ -42,6 +42,8 @@ import com.andrei1058.bedwars.arena.upgrades.BaseListener;
 import com.andrei1058.bedwars.arena.upgrades.HealPoolListner;
 import com.andrei1058.bedwars.commands.bedwars.MainCommand;
 import com.andrei1058.bedwars.commands.leave.LeaveCommand;
+import com.andrei1058.bedwars.commands.party.ChatModeCommand;
+import com.andrei1058.bedwars.commands.party.PartyChatCommand;
 import com.andrei1058.bedwars.commands.party.PartyCommand;
 import com.andrei1058.bedwars.commands.rejoin.RejoinCommand;
 import com.andrei1058.bedwars.commands.shout.ShoutCommand;
@@ -71,6 +73,7 @@ import com.andrei1058.bedwars.support.citizens.CitizensListener;
 import com.andrei1058.bedwars.support.citizens.JoinNPC;
 import com.andrei1058.bedwars.support.papi.PAPISupport;
 import com.andrei1058.bedwars.support.papi.SupportPAPI;
+import com.andrei1058.bedwars.support.party.Internal;
 import com.andrei1058.bedwars.support.party.NoParty;
 import com.andrei1058.bedwars.support.party.PAF;
 import com.andrei1058.bedwars.support.party.PAFBungeecordRedisApi;
@@ -581,12 +584,17 @@ public class BedWars extends JavaPlugin {
         if (getServerType() != ServerType.BUNGEE && config.getBoolean(ConfigPath.GENERAL_ENABLE_PARTY_CMD)) {
             Bukkit.getLogger().info("Registering /party command..");
             nms.registerCommand("party", new PartyCommand("party"));
+            nms.registerCommand("pc", new PartyChatCommand("pc"));
+            nms.registerCommand("pchat", new PartyChatCommand("pchat"));
+            nms.registerCommand("chat", new ChatModeCommand("chat"));
         }
     }
 
     public void onDisable() {
         shuttingDown = true;
         if (!serverSoftwareSupport) return;
+        // Cancel all pending party reconnect tasks
+        Internal.cancelAllReconnectTasks();
         if (getServerType() == ServerType.BUNGEE) {
             ArenaSocket.disable();
         }

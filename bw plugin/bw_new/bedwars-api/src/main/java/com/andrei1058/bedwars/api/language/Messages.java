@@ -102,6 +102,17 @@ public class Messages {
     public static String COMMAND_PARTY_WARP_SUCCESS = "cmd-party-warp";
     public static String COMMAND_PARTY_WARP_WARPED = "cmd-party-warp-teleported";
     public static String COMMAND_PARTY_WARP_NOT_IN_ARENA = "cmd-party-warp-not-in-arena";
+    public static String COMMAND_PARTY_CHAT_FORMAT = "cmd-party-chat-format";
+    public static String COMMAND_PARTY_CHAT_MODE_PARTY = "cmd-party-chat-mode-party";
+    public static String COMMAND_PARTY_CHAT_MODE_ALL = "cmd-party-chat-mode-all";
+    public static String COMMAND_PARTY_CHAT_USAGE = "cmd-party-chat-usage";
+    public static String COMMAND_PARTY_DISCONNECT_GRACE = "cmd-party-disconnect-grace";
+    public static String COMMAND_PARTY_DISCONNECT_EXPIRED = "cmd-party-disconnect-expired";
+    public static String COMMAND_PARTY_RECONNECTED = "cmd-party-reconnected";
+    public static String COMMAND_PARTY_QUEUE_AUTO_JOIN = "cmd-party-queue-auto-join";
+    public static String COMMAND_PARTY_WARP_COOLDOWN = "cmd-party-warp-cooldown";
+    public static String COMMAND_PARTY_WARP_NO_SPACE = "cmd-party-warp-no-space";
+    public static String COMMAND_PARTY_WARP_WARPING = "cmd-party-warp-warping";
     public static String COMMAND_NOT_FOUND_OR_INSUFF_PERMS = "cmd-not-found";
     public static String COMMAND_FORCESTART_NOT_IN_GAME = "cmd-start-no-game";
     public static String COMMAND_FORCESTART_SUCCESS = "cmd-start";

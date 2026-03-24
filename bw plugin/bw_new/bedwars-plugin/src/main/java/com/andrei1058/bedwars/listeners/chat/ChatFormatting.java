@@ -32,6 +32,7 @@ import com.andrei1058.bedwars.arena.Arena;
 import com.andrei1058.bedwars.commands.shout.ShoutCommand;
 import com.andrei1058.bedwars.configuration.Permissions;
 import com.andrei1058.bedwars.support.papi.SupportPAPI;
+import com.andrei1058.bedwars.support.party.Internal;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -51,6 +52,14 @@ public class ChatFormatting implements Listener {
     public void onChat(AsyncPlayerChatEvent e) {
         if (e == null) return;
         Player p = e.getPlayer();
+
+        // Party chat mode interception — if player has chat mode set to PARTY and is in a party
+        if (getParty().isInternal() && getParty().hasParty(p)
+                && Internal.getChatMode(p) == Internal.ChatMode.PARTY) {
+            e.setCancelled(true);
+            Internal.sendPartyChatMessage(p, e.getMessage());
+            return;
+        }
 
         // in shared mode we don't want messages from outside the arena to be seen in game
         if (getServerType() == ServerType.SHARED && Arena.getArenaByPlayer(p) == null) {
