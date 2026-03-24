@@ -209,6 +209,13 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 .fm-crumb:hover { text-decoration: underline; }
 .fm-sep { color: var(--text-muted); }
 .fm-actions { display: flex; gap: 6px; }
+.fm-search { flex: 1; min-width: 150px; max-width: 300px; }
+.fm-search input {
+  width: 100%; padding: 6px 12px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); font-size: 13px; outline: none;
+}
+.fm-search input:focus { border-color: var(--accent); }
+.fm-search input::placeholder { color: var(--text-muted); }
 
 .fm-table-wrap { flex: 1; overflow: auto; }
 .fm-table { width: 100%; border-collapse: collapse; font-size: 13px; }

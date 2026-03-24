@@ -436,6 +436,9 @@
       <div class="fm">
         <div class="fm-toolbar">
           <div class="fm-breadcrumb" id="fm-bread"></div>
+          <div class="fm-search">
+            <input type="text" id="fm-search-input" placeholder="Search files..." autocomplete="off">
+          </div>
           <div class="fm-actions">
             <label class="btn btn-green btn-sm fm-upload-btn">&#x2B06; Upload
               <input type="file" id="fm-upload-input" multiple style="display:none">
@@ -491,6 +494,14 @@
       if (!name) return;
       await api('PUT', '/api/files/write', { path: pathStr ? pathStr + '/' + name : name, content: '' });
       loadDir();
+    });
+
+    $('#fm-search-input').addEventListener('input', () => {
+      const q = $('#fm-search-input').value.toLowerCase();
+      $$('#fm-body .fm-row').forEach(row => {
+        const name = row.dataset.name.toLowerCase();
+        row.style.display = name.includes(q) ? '' : 'none';
+      });
     });
   }
 
