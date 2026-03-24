@@ -1,0 +1,24 @@
+on world change:
+    # 1. Use player's world to avoid the "no location" error
+    set {_currentWorld} to player's world
+    
+    # 2. Check if this specific world has been initialized since the last restart
+    if {worldStatus::%{_currentWorld}%} is not set:
+        
+        # 3. Mark it as "done" so it never runs again for this world until restart
+        set {worldStatus::%{_currentWorld}%} to true
+        
+        # 4. Execute the commands
+        execute console command "gamerule doFireTick false"
+        execute console command "rg flag __global__ fire-spread deny"
+        
+        # 5. Execute for that particular world specifically
+        execute console command "gamerule doFireTick false %{_currentWorld}%"
+        execute console command "rg flag -w %{_currentWorld}% __global__ fire-spread deny"
+        
+        # Optional: Log it to your console so you know it worked
+        send "[Skript] First player joined %{_currentWorld}%. FireTick disabled in this world." to console
+
+# This part resets the memory every time the server restarts or script reloads
+on load:
+    delete {worldStatus::*}

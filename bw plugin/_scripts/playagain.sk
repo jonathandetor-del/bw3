@@ -1,0 +1,31 @@
+command /playagain <player>:
+    permission: console.only
+    executable by: console and player
+    trigger:
+        set {_target} to arg-1
+        
+        # Initial check to capture the world
+        if {_target} is online:
+            set {_startWorld} to world of {_target}
+            
+            # Wait 2.5 seconds before showing the message
+            wait 2.5 seconds
+            
+            # Re-check online/world status before messaging
+            if {_target} is online:
+                if world of {_target} is {_startWorld}:
+                    send "&aYou don't need to do anything, you will automatically be sent to lobby!" to {_target}
+                    
+                    # Wait the remaining 4 seconds (6.5 total)
+                    wait 4 seconds
+                    
+                    # Final check before forcing the leave
+                    if {_target} is online:
+                        if world of {_target} is {_startWorld}:
+                            make {_target} execute command "/leave"
+                        else:
+                            log "Action cancelled: %{_target}% changed worlds."
+                    else:
+                        log "Action cancelled: %{_target}% logged off."
+        else:
+            log "Command failed: %{_target}% is not online."

@@ -1,0 +1,6 @@
+on command "/essentials:fly":
+    # This stops the fly command from executing
+    cancel event
+    
+    # This forces the player to run the command "hehehehe"
+    execute player command "hehehehe"

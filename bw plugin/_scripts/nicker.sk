@@ -1,0 +1,19 @@
+command /nick [<text>]:
+    trigger:
+        # If no arguments (just /nick), open the DeluxeMenu
+        if arg-1 is not set:
+            execute player command "dm open nick_menu"
+            stop
+            
+        # Replicates your screenshot's help message
+        if arg-1 is "help":
+            send "&6Command Help: &f/nick"
+            send "&6Description: &fChange your nickname or that of another player."
+            send "&6Usage(s):"
+            send "&f/nick <nickname> &7- &6Changes your nickname to the given text"
+            send "&f/nick off &7- &6Removes your nickname"
+            stop
+
+        # Passes arguments (like /nick MyName) to the main plugin
+        # Using 'essentials:nick' prevents Skript from looping itself
+        execute player command "essentials:nick %arg-1%"

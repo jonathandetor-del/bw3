@@ -1,0 +1,24 @@
+# 1. Track fire placed during the game
+on place of fire:
+    if player's world is not "world":
+        set {tempfire::%location of event-block%} to true
+
+# 2. Prevent natural extinguishing (The fix for your error)
+on fade:
+    if event-block is fire:
+        # If the fire location wasn't tracked, it's map fire. Keep it alive.
+        if {tempfire::%location of event-block%} is not set:
+            cancel event
+
+# 3. Block punching out map fire
+on left click on fire:
+    if {tempfire::%location of event-block%} is not set:
+        cancel event
+    else:
+        # Allow extinguishing player-placed fire
+        set event-block to air
+        delete {tempfire::%location of event-block%}
+
+# 4. Clean up when script reloads
+on load:
+    delete {tempfire::*}

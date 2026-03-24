@@ -1,0 +1,4 @@
+command /storedm:
+    trigger:
+        wait 0.2 seconds
+        execute player command "bwc menu"

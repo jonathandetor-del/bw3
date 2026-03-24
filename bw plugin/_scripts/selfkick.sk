@@ -1,0 +1,29 @@
+# The SelfKick command
+command /selfkick:
+    description: Kick yourself from the server.
+    trigger:
+        if player's world is "world":
+            kick player due to "&cYou kicked yourself using SelfKick!"
+        else:
+            set metadata value "sk_ignore" of player to true
+            execute player command "/bw leave"
+            
+            wait 1.5 seconds
+            
+            send "&cYou kicked yourself using SelfKick!" to player
+            # Using the standard syntax for instant titles
+            send title "&cDisconnected from Game server" with subtitle "&fConnected to Bedwars Lobby" to player for 3 seconds
+            
+            wait 2 seconds
+            delete metadata value "sk_ignore" of player
+
+# The World Change logic
+on world change:
+    # Wait 2 seconds to ensure the game server handshake is finished
+    wait 2 seconds
+    
+    # Final check: are they in the lobby and not using /selfkick?
+    if player's world is "world":
+        if metadata value "sk_ignore" of player is not set:
+            # Using the standard syntax for instant titles
+            send title "&aSuccessfully connected" with subtitle "&fTo Bedwars Lobby" to player for 3 seconds

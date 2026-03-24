@@ -219,6 +219,28 @@ app.post('/api/plugins/:name/toggle', auth, async (req, res) => {
   }
 });
 
+app.post('/api/plugins/:name/delete', auth, async (req, res) => {
+  const name = req.params.name;
+  if (!name) return res.status(400).json({ error: 'Missing plugin name' });
+  try {
+    const r = await getRcon();
+    await r.command('plugman unload ' + name);
+  } catch (_) {}
+  const pluginsDir = path.join(DATA_DIR, 'plugins');
+  try {
+    const files = fs.readdirSync(pluginsDir);
+    const jar = files.find(f => f.replace(/\.jar$/i, '').toLowerCase() === name.toLowerCase());
+    if (jar) {
+      fs.unlinkSync(path.join(pluginsDir, jar));
+      res.json({ ok: true, deleted: jar });
+    } else {
+      res.status(404).json({ error: 'Plugin jar not found' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/plugins/upload', auth, async (req, res) => {
   const name = req.query.name;
   if (!name || !/\.jar$/i.test(name) || name.includes('..') || name.includes('/') || name.includes('\\')) {

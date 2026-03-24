@@ -1,0 +1,25 @@
+command /bw start:
+    permission: sk.1v1 or bw.forcestart
+    permission message: &cYou don't have permission to start BedWars games!
+    trigger:
+        # Check if the player is in the "world" world (Applies to everyone)
+        if world of player is "world":
+            make player execute command "/heheheh"
+            stop
+
+        # Logic for sk.1v1 permission (Specific allowed worlds)
+        if player has permission "sk.1v1":
+            set {_w} to "%world of player%"
+            if {_w} contains "ruins_" or "picnic_" or "cryptic_" or "frost_" or "gardens_":
+                # Logic for success (Running the actual start command)
+                make player execute command "bw:bw start" 
+            else:
+                # If they have sk.1v1 but aren't in those worlds, and don't have the higher perm
+                if player does not have permission "bw.forcestart":
+                    send "&cYou can only use this command in 1v1 arenas!" to player
+                    stop
+
+        # Logic for bw.forcestart permission (Any world except "world")
+        if player has permission "bw.forcestart":
+            # If they reached here and aren't in "world", they are good to go
+            make player execute command "bw:bw start"

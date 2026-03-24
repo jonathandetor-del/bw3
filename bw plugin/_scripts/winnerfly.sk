@@ -1,0 +1,23 @@
+command /winnerfly <player>:
+    permission: console.only
+    executable by: console and player
+    trigger:
+        set {_target} to arg-1
+        set {_w} to world of {_target}
+        
+        # Loop through every player in the target's world
+        loop all players in {_w}:
+            wait 20 ticks
+            set flight mode of loop-player to true
+            set {winnerfly::%loop-player's uuid%} to true
+
+# Detect when the player changes worlds to disable flight
+on world change:
+    if {winnerfly::%player's uuid%} is true:
+        set flight mode of player to false
+        delete {winnerfly::%player's uuid%}
+
+# Cleanup if they disconnect entirely
+on quit:
+    delete {winnerfly::%player's uuid%}
+    

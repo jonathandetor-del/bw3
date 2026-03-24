@@ -115,11 +115,21 @@ sync_server_runtime_files() {
         fi
     fi
 
-    # Seed LuckPerms config from image if missing
-    if [ -f /server/plugins/LuckPerms/config.yml ] && [ ! -f /data/plugins/LuckPerms/config.yml ]; then
-        mkdir -p /data/plugins/LuckPerms
-        cp -a /server/plugins/LuckPerms/config.yml /data/plugins/LuckPerms/config.yml
-        echo "Seeded LuckPerms config from image"
+    # Always update LuckPerms config from image (so storage-method changes take effect)
+    mkdir -p /data/plugins/LuckPerms
+    cp -f /server/plugins/LuckPerms/config.yml /data/plugins/LuckPerms/config.yml
+    echo "Updated LuckPerms config from image"
+    # Inject MySQL connection details from Railway addon env vars
+    LP_CFG="/data/plugins/LuckPerms/config.yml"
+    if [ -n "$MYSQLHOST" ]; then
+        sed -i "s|LUCKPERMS_DB_HOST|${MYSQLHOST}|g" "$LP_CFG"
+        sed -i "s|LUCKPERMS_DB_PORT|${MYSQLPORT:-3306}|g" "$LP_CFG"
+        sed -i "s|LUCKPERMS_DB_NAME|${MYSQLDATABASE:-railway}|g" "$LP_CFG"
+        sed -i "s|LUCKPERMS_DB_USER|${MYSQLUSER:-root}|g" "$LP_CFG"
+        sed -i "s|LUCKPERMS_DB_PASS|${MYSQLPASSWORD}|g" "$LP_CFG"
+        echo "Injected MySQL connection details into LuckPerms config"
+    else
+        echo "WARNING: MYSQLHOST not set — LuckPerms MySQL will fail. Add a Railway MySQL addon."
     fi
 
     # Seed TAB config from image if missing

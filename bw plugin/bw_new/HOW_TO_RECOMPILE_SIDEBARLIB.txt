@@ -1,0 +1,249 @@
+============================================================
+HOW TO RECOMPILE SIDEBARLIB FOR JAVA 11 (runs on Java 17)
+============================================================
+
+PROBLEM:
+  The original SidebarLib's sidebar-base module was compiled 
+  with Java 20 (class file version 64.0). This causes:
+    "UnsupportedClassVersionError: class file version 64.0"
+  on servers running Java 17 or lower.
+
+SOLUTION:
+  Recompile SidebarLib from source with Java 11 target, 
+  then rebuild BedWars1058 against the new local SidebarLib.
+
+PREREQUISITES:
+  - JDK 11 or higher installed (we used Eclipse Adoptium JDK)
+  - Maven installed (we used C:\maven\apache-maven-3.9.13)
+  - SidebarLib source code (https://gitlab.com/andrei1058/SidebarLib)
+  - BedWars1058 source code
+
+
+============================================================
+STEP 1: Download SidebarLib Source
+============================================================
+
+Download from: https://gitlab.com/andrei1058/SidebarLib
+Extract into:  BedWars1058-master\SidebarLib-master\
+
+The folder should contain:
+  SidebarLib-master\
+    pom.xml
+    sidebar-base\
+    sidebar-v1_8_R3\
+    sidebar-v1_12_R1\
+    sidebar-v1_16_R3\
+    sidebar-v1_17_R1\
+    sidebar-v1_18_R2\
+    sidebar-v1_19_R2\
+    sidebar-v1_19_R3\
+    sidebar-v1_20_R1\
+    sidebar-v1_20_R2\
+    sidebar-v1_20_R3\
+    sidebar-v1_20_R4\
+    sidebar-v1_21_R1\   <-- will be removed
+    sidebar-v1_21_R2\   <-- will be removed
+    sidebar-v1_21_R3\   <-- will be removed
+    sidebar-cmn1\       <-- will be removed
+
+
+============================================================
+STEP 2: Edit the ROOT pom.xml (SidebarLib-master\pom.xml)
+============================================================
+
+Open:  SidebarLib-master\pom.xml
+
+CHANGE 1 - Version number:
+  Find:     <version>24.1</version>   (or whatever version it says)
+  Replace:  <version>24.2</version>
+
+CHANGE 2 - Remove modules that need Java 20+:
+  In the <modules> section, DELETE these lines:
+    <module>sidebar-v1_21_R1</module>
+    <module>sidebar-v1_21_R2</module>
+    <module>sidebar-v1_21_R3</module>
+    <module>sidebar-cmn1</module>
+
+  The final <modules> section should look like:
+    <modules>
+        <module>sidebar-base</module>
+        <module>sidebar-v1_20_R4</module>
+        <module>sidebar-v1_20_R3</module>
+        <module>sidebar-v1_20_R2</module>
+        <module>sidebar-v1_20_R1</module>
+        <module>sidebar-v1_19_R3</module>
+        <module>sidebar-v1_19_R2</module>
+        <module>sidebar-v1_18_R2</module>
+        <module>sidebar-v1_17_R1</module>
+        <module>sidebar-v1_16_R3</module>
+        <module>sidebar-v1_12_R1</module>
+        <module>sidebar-v1_8_R3</module>
+    </modules>
+
+
+============================================================
+STEP 3: Edit sidebar-base pom.xml
+============================================================
+
+Open:  SidebarLib-master\sidebar-base\pom.xml
+
+CHANGE 1 - Parent version:
+  Find:     <version>24.1</version>   (inside <parent>)
+  Replace:  <version>24.2</version>
+
+CHANGE 2 - Compiler source/target properties:
+  Find:
+    <properties>
+        <maven.compiler.source>20</maven.compiler.source>
+        <maven.compiler.target>20</maven.compiler.target>
+    </properties>
+
+  Replace with:
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+    </properties>
+
+CHANGE 3 - Compiler plugin (further down in same file):
+  Find:
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+            <source>20</source>
+            <target>20</target>
+        </configuration>
+    </plugin>
+
+  Replace with:
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+            <source>11</source>
+            <target>11</target>
+        </configuration>
+    </plugin>
+
+
+============================================================
+STEP 4: Update ALL other sidebar module pom.xml files
+============================================================
+
+For EACH of these folders, open the pom.xml inside and change
+the parent version to match:
+
+  SidebarLib-master\sidebar-v1_8_R3\pom.xml
+  SidebarLib-master\sidebar-v1_12_R1\pom.xml
+  SidebarLib-master\sidebar-v1_16_R3\pom.xml
+  SidebarLib-master\sidebar-v1_17_R1\pom.xml
+  SidebarLib-master\sidebar-v1_18_R2\pom.xml
+  SidebarLib-master\sidebar-v1_19_R2\pom.xml
+  SidebarLib-master\sidebar-v1_19_R3\pom.xml
+  SidebarLib-master\sidebar-v1_20_R1\pom.xml
+  SidebarLib-master\sidebar-v1_20_R2\pom.xml
+  SidebarLib-master\sidebar-v1_20_R3\pom.xml
+  SidebarLib-master\sidebar-v1_20_R4\pom.xml
+
+In each file, find the <parent> section:
+    <parent>
+        <artifactId>sidebar-pom</artifactId>
+        <groupId>com.andrei1058.spigot.sidebar</groupId>
+        <version>24.1</version>            <-- change this
+    </parent>
+
+Change the version to 24.2 so it matches the root pom.
+
+
+============================================================
+STEP 5: Build SidebarLib
+============================================================
+
+Open a terminal/PowerShell in SidebarLib-master\ and run:
+
+  set JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-17.x.x
+     (replace with your actual JDK path)
+
+  mvn clean install -DskipTests
+
+  (If using PowerShell):
+  $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot"
+  & "C:\maven\apache-maven-3.9.13\bin\mvn.cmd" clean install -DskipTests
+
+You should see BUILD SUCCESS for all modules.
+
+This installs the JARs into your local Maven repository
+(~\.m2\repository\com\andrei1058\spigot\sidebar\).
+
+
+============================================================
+STEP 6: Update BedWars1058 pom.xml
+============================================================
+
+Open:  BedWars1058-master\bedwars-plugin\pom.xml
+
+Find ALL sidebar dependencies and make sure the version
+matches 24.2. They look like:
+
+    <dependency>
+        <groupId>com.andrei1058.spigot.sidebar</groupId>
+        <artifactId>sidebar-base</artifactId>
+        <version>24.2</version>            <-- must match
+        <scope>compile</scope>
+    </dependency>
+
+Do this for sidebar-base, sidebar-v1_8_R3, sidebar-v1_12_R1,
+sidebar-v1_16_R3, sidebar-v1_17_R1, sidebar-v1_18_R2,
+sidebar-v1_19_R2, sidebar-v1_19_R3, sidebar-v1_20_R1,
+sidebar-v1_20_R2, sidebar-v1_20_R3, sidebar-v1_20_R4.
+
+IMPORTANT: Remove any dependencies for modules you deleted:
+  - sidebar-v1_21_R1
+  - sidebar-v1_21_R2
+  - sidebar-v1_21_R3
+  - sidebar-cmn1
+
+
+============================================================
+STEP 7: Build BedWars1058
+============================================================
+
+Open a terminal/PowerShell in BedWars1058-master\ and run:
+
+  mvn clean package -DskipTests
+
+  (If using PowerShell):
+  $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot"
+  & "C:\maven\apache-maven-3.9.13\bin\mvn.cmd" clean package -DskipTests
+
+The final JAR will be at:
+  BedWars1058-master\bedwars-plugin\target\bedwars-plugin-25.2.jar
+
+
+============================================================
+SUMMARY OF ALL CHANGES
+============================================================
+
+Files edited:
+  1. SidebarLib-master\pom.xml
+     - version: 24.1 -> 24.2
+     - removed 4 modules: sidebar-v1_21_R1, v1_21_R2, v1_21_R3, sidebar-cmn1
+
+  2. SidebarLib-master\sidebar-base\pom.xml
+     - parent version: 24.1 -> 24.2
+     - maven.compiler.source: 20 -> 11
+     - maven.compiler.target: 20 -> 11
+     - maven-compiler-plugin source: 20 -> 11
+     - maven-compiler-plugin target: 20 -> 11
+
+  3. All other sidebar-v1_*\pom.xml files (11 files)
+     - parent version: 24.1 -> 24.2
+
+  4. BedWars1058-master\bedwars-plugin\pom.xml
+     - all sidebar dependency versions: old -> 24.2
+     - removed sidebar-v1_21_* and sidebar-cmn1 dependencies
+
+WHY JAVA 11 AND NOT 17:
+  Java 11 target means the bytecode runs on Java 11, 12, 13,
+  14, 15, 16, 17, 18, 19, 20, and 21. Targeting 11 gives the
+  widest compatibility. Your server runs Java 17 which is fine.

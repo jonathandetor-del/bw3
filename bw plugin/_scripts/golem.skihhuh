@@ -1,0 +1,15 @@
+# Detects when a creature is summoned via a spawn egg
+on spawn:
+    # Check if the creature is an Iron Golem or a Bat
+    if entity is an iron golem or a bat:
+        # We check the nearby player who likely used the egg
+        set {_p} to player
+        if {_p} is set:
+            send "&eThis creature will fight for you for 250 seconds" to {_p}
+
+# Detects when a snowball is thrown/clicked
+on right click:
+    if player's tool is a snowball:
+        # Check if they are aiming at a block (to trigger the silverfish)
+        if target block is set:
+            send "&eThis creature will fight for you for 18 seconds" to player

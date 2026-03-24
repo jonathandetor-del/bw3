@@ -1,0 +1,7 @@
+command /map:
+    trigger:
+        if world of player is "world":
+            execute player command "hehehehe"
+            stop
+        execute player command "wtfmap"
+

@@ -48,6 +48,33 @@
     return div.innerHTML;
   }
 
+  // --- Toast Notifications ---
+  function showToast(msg, type) {
+    const t = document.createElement('div');
+    t.className = 'toast toast-' + (type || 'info');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('toast-show'));
+    setTimeout(() => { t.classList.remove('toast-show'); setTimeout(() => t.remove(), 300); }, 3000);
+  }
+
+  function showOverlay(msg) {
+    let ov = document.getElementById('restart-overlay');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'restart-overlay';
+      ov.className = 'restart-overlay';
+      document.body.appendChild(ov);
+    }
+    ov.innerHTML = '<div class="restart-box"><div class="spinner"></div><p>' + escapeHtml(msg) + '</p></div>';
+    ov.style.display = 'flex';
+  }
+
+  function hideOverlay() {
+    const ov = document.getElementById('restart-overlay');
+    if (ov) ov.style.display = 'none';
+  }
+
   // --- Auth ---
   function showLogin() {
     $('#login-screen').style.display = '';
@@ -148,12 +175,28 @@
   // --- Server Controls ---
   $('#btn-restart').addEventListener('click', async () => {
     if (!confirm('Restart the server?')) return;
-    await api('POST', '/api/server/restart');
+    showOverlay('Server is restarting...');
+    try { await api('POST', '/api/server/restart'); } catch (_) {}
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts++;
+      try {
+        const d = await api('GET', '/api/info');
+        if (d.tps && !d.error) {
+          clearInterval(poll);
+          hideOverlay();
+          showToast('Server restarted successfully!', 'success');
+        }
+      } catch (_) {}
+      if (attempts > 120) { clearInterval(poll); hideOverlay(); showToast('Restart is taking longer than expected', 'warn'); }
+    }, 3000);
   });
 
   $('#btn-stop').addEventListener('click', async () => {
     if (!confirm('Stop the server? You will need Railway to restart it.')) return;
-    await api('POST', '/api/server/stop');
+    showOverlay('Server is stopping...');
+    try { await api('POST', '/api/server/stop'); } catch (_) {}
+    setTimeout(hideOverlay, 5000);
   });
 
   // --- Page Rendering ---
@@ -341,12 +384,12 @@
           await fetch(`/api/plugins/upload?name=${encodeURIComponent(file.name)}`, {
             method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: buf
           });
-        } catch (e) { alert('Upload failed: ' + e.message); }
+        } catch (e) { showToast('Upload failed: ' + e.message, 'error'); }
       }
       uploadBtn.disabled = false;
       uploadBtn.textContent = '\u2191 Upload Plugin';
       uploadInput.value = '';
-      alert('Plugin(s) uploaded and auto-loaded!');
+      showToast('Plugin(s) uploaded and auto-loaded!', 'success');
       renderPlugins(c);
     });
 
@@ -368,16 +411,31 @@
         el.innerHTML = filtered.map((p) => `
           <div class="plugin-item">
             <span class="plugin-name">${escapeHtml(p.name)}</span>
-            <label class="toggle">
-              <input type="checkbox" ${p.enabled ? 'checked' : ''} data-plugin="${escapeHtml(p.name)}">
-              <span class="toggle-slider"></span>
-            </label>
+            <div class="plugin-actions">
+              <label class="toggle">
+                <input type="checkbox" ${p.enabled ? 'checked' : ''} data-plugin="${escapeHtml(p.name)}">
+                <span class="toggle-slider"></span>
+              </label>
+              <button class="btn btn-sm btn-danger plugin-del-btn" data-plugin="${escapeHtml(p.name)}" title="Delete plugin">&#x1F5D1;</button>
+            </div>
           </div>`).join('');
         $$('.toggle input', el).forEach(inp => {
           inp.addEventListener('change', async () => {
             const name = inp.dataset.plugin;
             const enable = inp.checked;
             await api('POST', `/api/plugins/${encodeURIComponent(name)}/toggle`, { enable });
+          });
+        });
+        $$('.plugin-del-btn', el).forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const name = btn.dataset.plugin;
+            if (!confirm('Permanently delete plugin "' + name + '"? This cannot be undone.')) return;
+            try {
+              await api('POST', '/api/plugins/' + encodeURIComponent(name) + '/delete');
+              showToast('Plugin "' + name + '" deleted', 'success');
+              allPlugins = allPlugins.filter(p => p.name !== name);
+              renderList(searchInput.value.trim());
+            } catch (e) { showToast('Delete failed: ' + e.message, 'error'); }
           });
         });
       }
@@ -427,7 +485,8 @@
         const settings = {};
         $$('.setting-val', el).forEach(inp => { settings[inp.dataset.key] = inp.value; });
         const res = await api('PUT', '/api/settings', { settings });
-        alert(res.ok ? 'Settings saved! Restart the server to apply changes.' : 'Error: ' + (res.error || 'Unknown'));
+        if (res.ok) showToast('Settings saved! Restart to apply changes.', 'success');
+        else showToast('Error: ' + (res.error || 'Unknown'), 'error');
       });
     } catch (e) {
       $('#settings-container').innerHTML = `<div class="empty-state">Error: ${escapeHtml(e.message)}</div>`;
@@ -615,24 +674,27 @@
     const dir = fp.substring(0, fp.length - oldName.length);
     try {
       const res = await api('POST', '/api/files/rename', { oldPath: fp, newPath: dir + newName });
-      if (res.ok) loadDir();
-      else alert('Error: ' + (res.error || 'Unknown'));
-    } catch (e) { alert('Error: ' + e.message); }
+      if (res.ok) { loadDir(); showToast('Renamed to "' + newName + '"', 'success'); }
+      else showToast('Rename failed: ' + (res.error || 'Unknown'), 'error');
+    } catch (e) { showToast('Rename failed: ' + e.message, 'error'); }
   }
 
   async function extractFile(fp) {
-    if (!confirm(`Extract "${fp}" to the same folder?`)) return;
+    if (!confirm('Extract "' + fp + '" to the same folder?')) return;
     try {
       const res = await api('POST', '/api/files/extract', { path: fp });
-      if (res.ok) { alert('Extracted successfully!'); loadDir(); }
-      else alert('Error: ' + (res.error || 'Unknown'));
-    } catch (e) { alert('Error: ' + e.message); }
+      if (res.ok) { showToast('Extracted successfully!', 'success'); loadDir(); }
+      else showToast('Extract failed: ' + (res.error || 'Unknown'), 'error');
+    } catch (e) { showToast('Extract failed: ' + e.message, 'error'); }
   }
 
   async function deleteFile(fp) {
-    if (!confirm(`Delete "${fp}"?`)) return;
-    await api('DELETE', `/api/files?path=${encodeURIComponent(fp)}`);
-    loadDir();
+    if (!confirm('Delete "' + fp + '"?')) return;
+    try {
+      await api('DELETE', '/api/files?path=' + encodeURIComponent(fp));
+      showToast('Deleted successfully', 'success');
+      loadDir();
+    } catch (e) { showToast('Delete failed: ' + e.message, 'error'); }
   }
 
   function downloadFile(fp) {
@@ -648,24 +710,77 @@
       <div class="fm-editor">
         <div class="fm-editor-header">
           <span class="fm-editor-path">&#x270E; ${escapeHtml(fp)}</span>
-          <div>
-            <button class="btn btn-accent btn-sm" id="fm-save">Save</button>
+          <div class="fm-editor-btns">
+            <span class="fm-save-status" id="fm-save-status"></span>
+            <button class="btn btn-accent btn-sm" id="fm-save">&#x1F4BE; Save</button>
             <button class="btn btn-muted btn-sm" id="fm-back">Back</button>
           </div>
         </div>
-        <textarea class="fm-editor-area" id="fm-editor-content">Loading...</textarea>
+        <div class="fm-editor-body">
+          <div class="fm-line-numbers" id="fm-line-numbers"></div>
+          <textarea class="fm-editor-area" id="fm-editor-content" spellcheck="false">Loading...</textarea>
+        </div>
       </div>`;
-    try {
-      const data = await api('GET', `/api/files/read?path=${encodeURIComponent(fp)}`);
-      $('#fm-editor-content').value = data.content;
-    } catch (e) {
-      $('#fm-editor-content').value = 'Error: ' + e.message;
+    const textarea = $('#fm-editor-content');
+    const lineNums = $('#fm-line-numbers');
+    let saved = true;
+
+    function updateLineNumbers() {
+      const lines = textarea.value.split('\n').length;
+      let html = '';
+      for (let i = 1; i <= lines; i++) html += i + '\n';
+      lineNums.textContent = html;
     }
-    $('#fm-save').addEventListener('click', async () => {
-      await api('PUT', '/api/files/write', { path: fp, content: $('#fm-editor-content').value });
-      alert('Saved!');
+
+    function syncScroll() { lineNums.scrollTop = textarea.scrollTop; }
+
+    try {
+      const data = await api('GET', '/api/files/read?path=' + encodeURIComponent(fp));
+      textarea.value = data.content;
+      updateLineNumbers();
+    } catch (e) {
+      textarea.value = 'Error: ' + e.message;
+      updateLineNumbers();
+    }
+
+    textarea.addEventListener('input', () => {
+      updateLineNumbers();
+      if (saved) {
+        saved = false;
+        $('#fm-save-status').textContent = '\u2022 Unsaved changes';
+        $('#fm-save-status').className = 'fm-save-status unsaved';
+      }
     });
-    $('#fm-back').addEventListener('click', () => renderFiles($('#content')));
+    textarea.addEventListener('scroll', syncScroll);
+
+    textarea.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        $('#fm-save').click();
+      }
+    });
+
+    $('#fm-save').addEventListener('click', async () => {
+      const btn = $('#fm-save');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      try {
+        await api('PUT', '/api/files/write', { path: fp, content: textarea.value });
+        saved = true;
+        $('#fm-save-status').textContent = '\u2713 Saved';
+        $('#fm-save-status').className = 'fm-save-status saved';
+        showToast('File saved successfully!', 'success');
+      } catch (e) {
+        showToast('Save failed: ' + e.message, 'error');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '&#x1F4BE; Save';
+    });
+
+    $('#fm-back').addEventListener('click', () => {
+      if (!saved && !confirm('You have unsaved changes. Leave anyway?')) return;
+      renderFiles($('#content'));
+    });
   }
 
   // --- Init: check if already authed ---

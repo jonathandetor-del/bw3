@@ -1,0 +1,24 @@
+# Configuration
+options:
+    perm_node: bedwars.golden.auto
+    prefix: &6&lAutoGG &8»
+
+command /autogg [<text>]:
+    permission message: {@prefix} &cYou don't have permission to toggle this!
+    trigger:
+        if arg-1 is "on":
+            if player has permission "{@perm_node}":
+                send "{@prefix} &7AutoGG is already &aenabled&7." to player
+            else:
+                execute console command "lp user %player% permission set {@perm_node} true"
+                send "{@prefix} &7Feature &aenabled&7! You will now say GG automatically after a victory." to player
+            
+        else if arg-1 is "off":
+            if player does not have permission "{@perm_node}":
+                send "{@prefix} &7AutoGG is already &cdisabled&7." to player
+            else:
+                execute console command "lp user %player% permission unset {@perm_node}"
+                send "{@prefix} &7Feature &cdisabled&7. You will no longer say GG automatically after a victory." to player
+            
+        else:
+            send "{@prefix} &eUsage: /autogg <on|off>" to player

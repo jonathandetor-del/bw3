@@ -1,0 +1,9 @@
+command /winnersur <player>:
+    permission: op
+    trigger:
+        execute console command "gamemode adventure %arg-1%"
+
+on world change:
+    if event-world is "world":
+        execute console command "gamemode adventure %player%"
+        

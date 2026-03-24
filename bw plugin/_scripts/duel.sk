@@ -1,0 +1,179 @@
+# --- FUNCTIONS (MUST BE AT THE TOP) ---
+function stopDuel(p: player):
+    set {_u} to uuid of {_p}
+    delete {is_dueling::%{_u}%}
+    delete {duel_arena::%{_u}%}
+
+function startDuelCheck(p: player):
+    set {_u} to uuid of {_p}
+    while {is_dueling::%{_u}%} is set:
+        wait 2 seconds
+        if {_p} is online:
+            set {_arena} to {duel_arena::%{_u}%}
+            set {_world} to {_arena} parsed as world
+            
+            if "%world of {_p}%" is not "%{_world}%":
+                stopDuel({_p})
+                stop
+                
+            set {_opp_u} to {is_dueling::%{_u}%}
+            set {_opp} to {_opp_u} parsed as player
+            
+            if {_opp} is not online:
+                wait 80 ticks
+                send "&b&lDuels &8» &cOpponent disconnected! Leaving..." to {_p}
+                execute {_p} command "leave"
+                stopDuel({_p})
+            else if "%world of {_opp}%" is not "%{_world}%":
+            	wait 80 ticks
+                send "&b&lDuels &8» &cOpponent left the arena! Leaving..." to {_p}
+                execute {_p} command "leave"
+                stopDuel({_p})
+        else:
+            stopDuel({_p})
+            stop
+
+# --- ARENA SETUP ---
+on load:
+    delete {duel_arenas::*}
+    add "ruins_" to {duel_arenas::*}
+    add "picnic_" to {duel_arenas::*}
+    add "cryptic_" to {duel_arenas::*}
+    add "frost_" to {duel_arenas::*}
+    add "gardens_" to {duel_arenas::*}
+    add "ruins__" to {duel_arenas::*}
+    add "picnic__" to {duel_arenas::*}
+    add "cryptic__" to {duel_arenas::*}
+    add "frost__" to {duel_arenas::*}
+    add "gardens__" to {duel_arenas::*}
+    add "ruins___" to {duel_arenas::*}
+    add "picnic___" to {duel_arenas::*}
+    add "cryptic___" to {duel_arenas::*}
+    add "frost___" to {duel_arenas::*}
+    add "gardens___" to {duel_arenas::*}
+    add "ruins____" to {duel_arenas::*}
+    add "picnic____" to {duel_arenas::*}
+    add "cryptic____" to {duel_arenas::*}
+    add "frost____" to {duel_arenas::*}
+    add "gardens____" to {duel_arenas::*}
+
+options:
+    expire_time: 5 minutes
+    global_cooldown: 10 seconds
+    target_cooldown: 5 minutes
+    prefix: &b&lDuels &8»
+
+# --- COMMANDS ---
+command /duel [<player>]:
+    trigger:
+        if "%world of player%" is not "world":
+            execute player command "heheheh"
+            stop
+
+        if arg-1 is not set:
+            send "{@prefix} &cUsage: /duel <player>"
+            stop
+            
+        set {_target} to arg-1
+        set {_sender} to player
+
+        if "%world of {_target}%" is not "world":
+            send "{@prefix} &cThat player is not in the lobby server!" to {_sender}
+            stop
+            
+        if {_target} is {_sender}:
+            send "{@prefix} &cYou cannot duel yourself!"
+            stop
+            
+        set {_waited_g} to difference between {duel::global_cd::%player%} and now
+        if {_waited_g} is less than {@global_cooldown}:
+            set {_rem_g} to difference between {@global_cooldown} and {_waited_g}
+            send "{@prefix} &cWait &e%{_rem_g}% &cbefore challenging anyone again!"
+            stop
+
+        set {_waited_t} to difference between {duel::target_cd::%player%::%{_target}%} and now
+        if {_waited_t} is less than {@target_cooldown}:
+            set {_rem_t} to difference between {@target_cooldown} and {_waited_t}
+            send "{@prefix} &cWait &e%{_rem_t}% &cbefore challenging &f%{_target}% &cagain!"
+            stop
+
+        set {duel::request::%uuid of {_target}%::%uuid of {_sender}%} to now
+        set {duel::global_cd::%{_sender}%} to now
+        set {duel::target_cd::%{_sender}%::%{_target}%} to now
+        
+        send "{@prefix} &aDuel request sent to &f%{_target}%&a!" to {_sender}
+        
+        send "&7&m--------------------------------------------------" to {_target}
+        send "&f%{_sender}% &7challenged you to a &b1v1 Duel&7!" to {_target}
+        send "" to {_target}
+        execute console command "/tellraw %{_target}% [{""text"":""  ""},{""text"":""&a&l[ACCEPT]"",""clickEvent"":{""action"":""run_command"",""value"":""/duelaccept %{_sender}%""},""hoverEvent"":{""action"":""show_text"",""value"":""&aClick to join!""}},{""text"":""  ""},{""text"":""&c&l[DENY]"",""clickEvent"":{""action"":""run_command"",""value"":""/dueldeny %{_sender}%""},""hoverEvent"":{""action"":""show_text"",""value"":""&cClick to decline""}}]"
+        send "" to {_target}
+        send "&7Expires in &e5 minutes&7." to {_target}
+        send "&7&m--------------------------------------------------" to {_target}
+
+command /duelaccept [<player>]:
+    trigger:
+        if "%world of player%" is not "world":
+            execute player command "heheheh"
+            stop
+
+        if {duel::request::%uuid of player%::%uuid of arg-1%} is set:
+            if difference between {duel::request::%uuid of player%::%uuid of arg-1%} and now is less than {@expire_time}:
+                
+                set {_found} to false
+                loop {duel_arenas::*}:
+                    set {_world} to loop-value parsed as world
+                    if {_world} is set:
+                        if number of players in {_world} is 0:
+                            set {_target_arena} to loop-value
+                            set {_found} to true
+                            exit loop
+                
+                if {_found} is true:
+                    # Reset all cooldowns
+                    delete {duel::target_cd::%arg-1%::%player%}
+                    delete {duel::global_cd::%player%}
+                    delete {duel::global_cd::%arg-1%}
+                    
+                    delete {duel::request::%uuid of player%::%uuid of arg-1%}
+                    
+                    set {is_dueling::%uuid of player%} to uuid of arg-1
+                    set {is_dueling::%uuid of arg-1%} to uuid of player
+                    set {duel_arena::%uuid of player%} to {_target_arena}
+                    set {duel_arena::%uuid of arg-1%} to {_target_arena}
+
+                    send "{@prefix} &aArena &e%{_target_arena}% &afound! Starting..." to player and arg-1
+                    
+                    # Joining match
+                    execute player command "bw join %{_target_arena}%"
+                    execute arg-1 command "bw join %{_target_arena}%"
+                    
+                    # --- FORCE START FEATURE (No Perms Required) ---
+                    wait 1.5 seconds
+                    # Running from console bypasses player permission checks
+                    execute console command "bw start %{_target_arena}%"
+                    
+                    startDuelCheck(player)
+                    startDuelCheck(arg-1)
+                else:
+                    send "{@prefix} &cAll duel arenas are currently full!" to player
+            else:
+                delete {duel::request::%uuid of player%::%uuid of arg-1%}
+                send "{@prefix} &cThis duel request has expired!" to player
+        else:
+            send "{@prefix} &cNo pending request from &f%arg-1%&c." to player
+
+command /dueldeny [<player>]:
+    trigger:
+        if "%world of player%" is not "world":
+            execute player command "heheheh"
+            stop
+
+        if {duel::request::%uuid of player%::%uuid of arg-1%} is set:
+            delete {duel::target_cd::%arg-1%::%player%}
+            delete {duel::request::%uuid of player%::%uuid of arg-1%}
+            send "{@prefix} &cYou denied the duel request." to player
+            send "{@prefix} &f%player% &cdenied your duel request." to arg-1
+
+on quit:
+    stopDuel(player)

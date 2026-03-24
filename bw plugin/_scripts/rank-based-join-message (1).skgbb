@@ -1,0 +1,28 @@
+#Custom join message script
+#add more ranks if you want here
+#add highest rank at the first and then lowest rank
+  # OWNEr
+on join:
+  if player has permission "rank.owner":
+    broadcast "&4👑 &cServer Owner &f%player% &chas joined the server!"
+    stop
+
+  # ADMIN
+  if player has permission "rank.admin":
+    broadcast "&c🛡 &fAdmin &c%player% &chas joined the server!"
+    stop
+
+  # VIP
+  if player has permission "rank.vip":
+    broadcast "&6⭐ &eVIP &f%player% &ejoined the server!"
+    stop
+
+  # MOD
+  if player has permission "rank.mod":
+    broadcast "&2🔧 &aMod &f%player% &ahas joined the server!"
+    stop
+
+  # DEFAULT PLAYER
+  broadcast "&a✔ &f%player% &ahas joined the server!"
+  
+  #made by pranityt1 (custom)

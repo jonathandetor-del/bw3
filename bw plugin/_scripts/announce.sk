@@ -1,0 +1,32 @@
+on load:
+    # 1. The initial 5-minute delay before anything starts
+    wait 5 minutes
+    
+    while 1 is 1:
+        # 2. First Message
+        loop all players:
+            if loop-player's world is not "world":
+                send "&c&lIf you ever get disconnected you can rejoin using /rejoin" to loop-player
+        wait 3 minutes
+        
+        # 3. Second Message
+        loop all players:
+            if loop-player's world is not "world":
+                send "&c&lCross-teaming is strictly prohibited. if you see anyone breaking the rules make sure to report the player using /report" to loop-player
+        wait 3 minutes
+        
+        # 4. Third Message
+        loop all players:
+            if loop-player's world is not "world":
+                send "&c&lIf you do not want to play a game you can leave the game using /leave" to loop-player
+        wait 3 minutes
+        
+        loop all players:
+            if loop-player's world is not "world":
+                send "&c&lIf the game server crashed or not working as it was expected to use /leave or /lobby to go to lobby and start a new round" to loop-player
+        wait 3 minutes
+        
+        loop all players:
+            if loop-player's world is not "world":
+                send "&c&lIf you want to kick your self from the game server or lobby use /selfkick to do so" to loop-player
+        wait 3 minutes

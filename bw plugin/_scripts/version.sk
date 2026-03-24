@@ -1,0 +1,29 @@
+command /ver:
+    trigger:
+        cancel event
+        send "&aThis server runs &dHellGot&a, a heaviely modified version of spigot by HellCore team, [2025.11.10.0.1]" to player
+        send "&eThis server runs minecraft &b1.8.8"
+command /bungee:
+    trigger:
+        cancel event
+        send "&aThis server runs &bHellCord&a, a heaviely modified version of bungeecord by HellCore team, [2025.9.5.0.8]" to player
+        send "&eYour are connected to proxy &bchipper-bungee-83"
+command /proxy:
+    trigger:
+        cancel event
+        send "&aThis server runs HellCord, a heaviely modified version of bungeecord by HellCore team, [2025.9.5.0.8]" to player
+        send "&eYour are connected to proxy &bchipper-bungee-83"
+command /bungeecord:
+    trigger:
+        cancel event
+        send "&aThis server runs &bHellCord&a, a heaviely modified version of bungeecord by HellCore team, [2025.9.5.0.8]" to player
+        send "&eYour are connected to proxy &bchipper-bungee-83"
+command /version:
+    trigger:
+        cancel event
+        send "&aThis server runs &dHellGot&a, a heaviely modified version of spigot by HellCore team, [2025.11.10.0.1]" to player
+        send "&eThis server runs minecraft &b1.8.8"
+on command:
+    if command starts with "serverselector":
+        cancel event
+        execute player command "dm open games"

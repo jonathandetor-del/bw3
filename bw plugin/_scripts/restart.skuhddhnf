@@ -1,0 +1,18 @@
+# This starts the timer as soon as the Skript loads or the server starts
+on load:
+    while 1 is 1:
+        # 1. Wait for 1 hour and 15 minutes (75 minutes total)
+        # This leaves 15 minutes remaining until the 1 hour 30 min mark
+        wait 135 minutes
+        
+        # 2. 15-Minute Warning
+        broadcast ""
+        broadcast "&4&lAll the Bedwars servers will be restarting in 15 mins"
+        broadcast ""
+        
+        # 3. Final 15-minute wait
+        wait 15 minutes
+        
+        # 4. Execute the restart command
+        # This uses the "restart" command defined in your BedWars1058 config
+        execute console command "restart"
