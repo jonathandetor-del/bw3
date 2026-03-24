@@ -280,20 +280,24 @@ app.put('/api/settings', auth, (req, res) => {
 // ---- Server control ----
 
 app.post('/api/server/restart', auth, async (req, res) => {
+  // Save worlds first, then kill PID 1 so the container exits non-zero.
+  // Railway's ON_FAILURE restart policy will restart the container automatically.
   try {
     const r = await getRcon();
-    await r.command('restart');
-    res.json({ ok: true });
-  } catch (e) {
-    res.json({ error: e.message });
-  }
+    await r.command('save-all');
+  } catch (_) {}
+  res.json({ ok: true, message: 'Server restarting...' });
+  setTimeout(() => {
+    try { require('child_process').execSync('kill 1'); } catch (_) { process.exit(1); }
+  }, 2000);
 });
 
 app.post('/api/server/stop', auth, async (req, res) => {
+  // RCON stop = clean exit (code 0). Railway will NOT auto-restart.
   try {
     const r = await getRcon();
     await r.command('stop');
-    res.json({ ok: true });
+    res.json({ ok: true, message: 'Server stopping...' });
   } catch (e) {
     res.json({ error: e.message });
   }
