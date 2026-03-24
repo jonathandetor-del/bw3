@@ -326,7 +326,7 @@ function safePath(p) {
 }
 
 app.get('/api/files', auth, (req, res) => {
-  const dirPath = safePath(req.query.path || '/');
+  const dirPath = safePath(req.query.path || '');
   if (!dirPath) return res.status(400).json({ error: 'Invalid path' });
   try {
     if (!fs.existsSync(dirPath)) return res.status(404).json({ error: 'Not found' });
