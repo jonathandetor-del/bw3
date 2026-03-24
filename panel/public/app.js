@@ -431,10 +431,14 @@
             const name = btn.dataset.plugin;
             if (!confirm('Permanently delete plugin "' + name + '"? This cannot be undone.')) return;
             try {
-              await api('POST', '/api/plugins/' + encodeURIComponent(name) + '/delete');
-              showToast('Plugin "' + name + '" deleted', 'success');
-              allPlugins = allPlugins.filter(p => p.name !== name);
-              renderList(searchInput.value.trim());
+              const resp = await api('POST', '/api/plugins/' + encodeURIComponent(name) + '/delete');
+              if (resp.ok) {
+                showToast('Plugin "' + name + '" deleted', 'success');
+                allPlugins = allPlugins.filter(p => p.name !== name);
+                renderList(searchInput.value.trim());
+              } else {
+                showToast('Delete failed: ' + (resp.error || 'Unknown error'), 'error');
+              }
             } catch (e) { showToast('Delete failed: ' + e.message, 'error'); }
           });
         });
@@ -674,7 +678,7 @@
     const dir = fp.substring(0, fp.length - oldName.length);
     try {
       const res = await api('POST', '/api/files/rename', { oldPath: fp, newPath: dir + newName });
-      if (res.ok) { loadDir(); showToast('Renamed to "' + newName + '"', 'success'); }
+      if (res.ok) { showToast('Renamed to "' + newName + '"', 'success'); await loadDir(); }
       else showToast('Rename failed: ' + (res.error || 'Unknown'), 'error');
     } catch (e) { showToast('Rename failed: ' + e.message, 'error'); }
   }

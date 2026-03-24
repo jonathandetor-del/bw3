@@ -229,7 +229,12 @@ app.post('/api/plugins/:name/delete', auth, async (req, res) => {
   const pluginsDir = path.join(DATA_DIR, 'plugins');
   try {
     const files = fs.readdirSync(pluginsDir);
-    const jar = files.find(f => f.replace(/\.jar$/i, '').toLowerCase() === name.toLowerCase());
+    const nameLower = name.toLowerCase();
+    const jar = files.find(f => {
+      if (!/\.jar$/i.test(f)) return false;
+      const base = f.replace(/\.jar$/i, '').toLowerCase();
+      return base === nameLower || base.startsWith(nameLower + '-') || base.startsWith(nameLower + '_') || base.startsWith(nameLower + ' ');
+    });
     if (jar) {
       fs.unlinkSync(path.join(pluginsDir, jar));
       res.json({ ok: true, deleted: jar });
