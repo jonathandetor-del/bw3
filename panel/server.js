@@ -468,7 +468,9 @@ wss.on('connection', (ws) => {
   }
 
   tail.stdout.on('data', d => {
-    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'log', data: d.toString() }));
+    const text = d.toString();
+    const filtered = text.split('\n').filter(l => !l.includes('Rcon issued server command')).join('\n');
+    if (filtered.trim() && ws.readyState === 1) ws.send(JSON.stringify({ type: 'log', data: filtered }));
   });
   tail.stderr.on('data', d => {
     if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'error', data: d.toString() }));
