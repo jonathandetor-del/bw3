@@ -77,29 +77,13 @@ COPY --chown=minecraft:minecraft wepif.yml /server/wepif.yml
 COPY --chown=minecraft:minecraft eula.txt /server/eula.txt
 COPY --chown=minecraft:minecraft start.sh /server/start.sh
 
-# Plugins are managed manually via the panel — no longer synced from image.
-
-# Copy Skript scripts
-COPY --chown=minecraft:minecraft skript-scripts/ /server/plugins/Skript/scripts/
-
-# Copy BedWars1058 config (arenas, languages, generators, sounds, etc.)
-COPY --chown=minecraft:minecraft bedwars-config/ /server/plugins/BedWars1058/
-
-# Copy LuckPerms config
+# All plugins, configs, worlds, and scripts are managed via the panel.
+# Only LuckPerms config is synced (needs MySQL env var injection at boot).
 COPY --chown=minecraft:minecraft luckperms-config/config.yml /server/plugins/LuckPerms/config.yml
-
-# Copy TAB config
-COPY --chown=minecraft:minecraft tab-config/config.yml /server/plugins/TAB/config.yml
-
-# Copy main world (lobby — m160bw's "world" directory)
-COPY --chown=minecraft:minecraft main-world/ /server/world/
 
 # Arena map worlds (~1GB) are uploaded via File Browser at runtime.
 # BedWars1058 arena configs reference them by folder name.
 RUN mkdir -p /server/maps
-
-# Copy ops.json
-COPY --chown=minecraft:minecraft ops.json /server/ops.json
 
 # Copy nginx config and console wrapper
 COPY nginx.conf /etc/nginx/nginx.conf

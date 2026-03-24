@@ -61,58 +61,14 @@ import_arena_maps() {
 sync_server_runtime_files() {
     mkdir -p /data/plugins
 
-    # Always update binaries/jars from image.
+    # Always update server binary and startup script from image.
     cp -f /server/server.jar /data/server.jar
     cp -f /server/start.sh /data/start.sh
     chmod +x /data/start.sh
-    # Plugins are managed manually via the panel — no longer synced from image.
 
-    # Keep existing runtime settings; only seed defaults when missing.
-    # FlamePaper uses paper.yml (already handled above).
+    # All plugins, configs, worlds, and scripts are managed via the panel.
 
-    # Always force-update server.properties (spawn coords, MOTD, etc.)
-    if [ -f /server/server.properties ]; then
-        cp -f /server/server.properties /data/server.properties
-    fi
-
-    for f in bukkit.yml spigot.yml paper.yml pandaspigot.yml flamepaper.yml commands.yml help.yml permissions.yml wepif.yml eula.txt ops.json; do
-        if [ -f "/server/$f" ] && [ ! -f "/data/$f" ]; then
-            cp -a "/server/$f" "/data/$f"
-        fi
-    done
-
-    # Always update Skript scripts from image (source code, not runtime data).
-    if [ -d /server/plugins/Skript/scripts ]; then
-        mkdir -p /data/plugins/Skript/scripts
-        cp -f /server/plugins/Skript/scripts/*.sk /data/plugins/Skript/scripts/ 2>/dev/null || true
-    fi
-
-    # Seed BedWars1058 configs from image (arenas, languages, sounds, etc.)
-    if [ -d /server/plugins/BedWars1058 ]; then
-        mkdir -p /data/plugins/BedWars1058
-        # Only seed config files that don't exist yet (preserve runtime changes)
-        for f in /server/plugins/BedWars1058/*.yml; do
-            [ -f "$f" ] || continue
-            dest="/data/plugins/BedWars1058/$(basename "$f")"
-            if [ ! -f "$dest" ]; then
-                cp -a "$f" "$dest"
-                echo "Seeded BedWars config: $(basename "$f")"
-            fi
-        done
-        # Always sync arena definitions from image
-        if [ -d /server/plugins/BedWars1058/Arenas ]; then
-            mkdir -p /data/plugins/BedWars1058/Arenas
-            cp -f /server/plugins/BedWars1058/Arenas/*.yml /data/plugins/BedWars1058/Arenas/ 2>/dev/null || true
-            echo "Synced BedWars arena configs from image"
-        fi
-        # Seed languages if missing
-        if [ -d /server/plugins/BedWars1058/Languages ] && [ ! -d /data/plugins/BedWars1058/Languages ]; then
-            cp -a /server/plugins/BedWars1058/Languages /data/plugins/BedWars1058/Languages
-            echo "Seeded BedWars languages from image"
-        fi
-    fi
-
-    # Always update LuckPerms config from image (so storage-method changes take effect)
+    # Always update LuckPerms config from image (needs MySQL env var injection)
     mkdir -p /data/plugins/LuckPerms
     cp -f /server/plugins/LuckPerms/config.yml /data/plugins/LuckPerms/config.yml
     echo "Updated LuckPerms config from image"
@@ -127,19 +83,6 @@ sync_server_runtime_files() {
         echo "Injected MySQL connection details into LuckPerms config"
     else
         echo "WARNING: MYSQLHOST not set — LuckPerms MySQL will fail. Add a Railway MySQL addon."
-    fi
-
-    # Seed TAB config from image if missing
-    if [ -f /server/plugins/TAB/config.yml ] && [ ! -f /data/plugins/TAB/config.yml ]; then
-        mkdir -p /data/plugins/TAB
-        cp -a /server/plugins/TAB/config.yml /data/plugins/TAB/config.yml
-        echo "Seeded TAB config from image"
-    fi
-
-    # Seed main world from image if missing (level-name=world)
-    if [ -d /server/world ] && [ ! -d /data/world ]; then
-        cp -a /server/world /data/world
-        echo "Seeded main world from image."
     fi
 }
 
