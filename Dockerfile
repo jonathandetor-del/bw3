@@ -29,7 +29,9 @@ RUN ARCH="$(uname -m)" && \
         rm -f /tmp/filebrowser.tar.gz
 
 # Install nginx (reverse proxy for file manager + web console on single port)
-RUN apk add --no-cache nginx
+RUN apk add --no-cache nginx && \
+    mkdir -p /run/nginx /var/lib/nginx/tmp && \
+    chown -R minecraft:minecraft /run/nginx /var/lib/nginx /var/log/nginx
 
 # Install ttyd (web-based terminal)
 ARG TTYD_VERSION=1.7.7

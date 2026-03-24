@@ -471,8 +471,13 @@ fi
 
 # Nginx reverse proxy — combines file manager + console on port 8080
 if command -v nginx >/dev/null 2>&1; then
-    nginx -g 'daemon on;'
-    echo "Nginx reverse proxy started on port 8080"
+    nginx -g 'daemon on;' >/tmp/nginx-startup.log 2>&1
+    if [ $? -eq 0 ]; then
+        echo "Nginx reverse proxy started on port 8080"
+    else
+        echo "WARNING: nginx failed to start — see /tmp/nginx-startup.log"
+        cat /tmp/nginx-startup.log 2>/dev/null
+    fi
 fi
 
 # Railway TCP proxy forwards external traffic to port 25565.
