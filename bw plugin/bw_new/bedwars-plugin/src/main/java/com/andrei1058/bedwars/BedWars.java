@@ -584,6 +584,8 @@ public class BedWars extends JavaPlugin {
         if (getServerType() != ServerType.BUNGEE && config.getBoolean(ConfigPath.GENERAL_ENABLE_PARTY_CMD)) {
             Bukkit.getLogger().info("Registering /party command..");
             nms.registerCommand("party", new PartyCommand("party"));
+            nms.registerCommand("p", new PartyCommand("p"));
+            nms.registerCommand("pl", new PartyCommand("pl"));
             nms.registerCommand("pc", new PartyChatCommand("pc"));
             nms.registerCommand("pchat", new PartyChatCommand("pchat"));
             nms.registerCommand("chat", new ChatModeCommand("chat"));

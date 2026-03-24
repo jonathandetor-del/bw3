@@ -33,6 +33,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static com.andrei1058.bedwars.BedWars.getParty;
 import static com.andrei1058.bedwars.api.language.Language.getMsg;
@@ -114,15 +115,26 @@ public class Internal implements Party {
             if (p.owner == member) {
                 // Owner leaving: auto-promote if 2+ other members remain
                 if (p.members.size() > 2) {
+                    // Prefer a moderator for promotion
                     Player newOwner = null;
-                    for (Player mem : p.members) {
-                        if (mem != member) {
-                            newOwner = mem;
+                    for (Player mod : p.moderators) {
+                        if (mod != member && p.members.contains(mod)) {
+                            newOwner = mod;
                             break;
+                        }
+                    }
+                    if (newOwner == null) {
+                        for (Player mem : p.members) {
+                            if (mem != member) {
+                                newOwner = mem;
+                                break;
+                            }
                         }
                     }
                     if (newOwner != null) {
                         p.owner = newOwner;
+                        p.moderators.remove(newOwner);
+                        p.moderators.remove(member);
                         p.members.remove(member);
                         chatModes.remove(member.getUniqueId());
                         for (Player mem : p.members) {
@@ -138,6 +150,7 @@ public class Internal implements Party {
                     mem.sendMessage(getMsg(mem, Messages.COMMAND_PARTY_LEAVE_SUCCESS).replace("{playername}", member.getName()).replace("{player}", member.getDisplayName()));
                 }
                 p.members.remove(member);
+                p.moderators.remove(member);
                 chatModes.remove(member.getUniqueId());
                 if (p.members.isEmpty() || p.members.size() == 1) {
                     disband(p.owner);
@@ -181,6 +194,7 @@ public class Internal implements Party {
                     mem.sendMessage(getMsg(mem, Messages.COMMAND_PARTY_REMOVE_SUCCESS).replace("{player}", target.getName()));
                 }
                 p.members.remove(target);
+                p.moderators.remove(target);
                 chatModes.remove(target.getUniqueId());
                 if (p.members.isEmpty() || p.members.size() == 1) {
                     disband(p.owner);
@@ -257,13 +271,22 @@ public class Internal implements Party {
 
         boolean isLeader = (party.owner == p);
 
-        // If leader disconnects: auto-promote first online member
+        // If leader disconnects: auto-promote (prefer moderator) 
         if (isLeader) {
             Player newOwner = null;
-            for (Player mem : party.members) {
-                if (mem != p) {
-                    newOwner = mem;
+            // Prefer a moderator
+            for (Player mod : party.moderators) {
+                if (mod != p && party.members.contains(mod)) {
+                    newOwner = mod;
                     break;
+                }
+            }
+            if (newOwner == null) {
+                for (Player mem : party.members) {
+                    if (mem != p) {
+                        newOwner = mem;
+                        break;
+                    }
                 }
             }
             if (newOwner == null || party.members.size() <= 2) {
@@ -274,6 +297,7 @@ public class Internal implements Party {
             }
             // Promote new owner
             party.owner = newOwner;
+            party.moderators.remove(newOwner);
             for (Player mem : party.members) {
                 if (mem != p) {
                     mem.sendMessage(getMsg(mem, Messages.COMMAND_PARTY_PROMOTE_NEW_OWNER).replace("{player}", newOwner.getName()));
@@ -406,6 +430,16 @@ public class Internal implements Party {
         List<Player> members = getParty().getMembers(owner);
         if (members == null) return;
 
+        // Mute check: if party is muted, only owner, mods, and staff can chat
+        PartyData pd = getPartyDataByPlayer(sender);
+        if (pd != null && pd.isMuted()) {
+            if (pd.owner != sender && !pd.moderators.contains(sender)
+                    && !sender.hasPermission("bw.party.mute.bypass")) {
+                sender.sendMessage("\u00A79Party \u00A78> \u00A7cThe party is currently muted.");
+                return;
+            }
+        }
+
         String prefix = "\u00A79Party \u00A78> \u00A7a" + sender.getName() + "\u00A7f: ";
         Sound pingSound;
         try {
@@ -447,10 +481,73 @@ public class Internal implements Party {
         return Collections.unmodifiableList(parties);
     }
 
-    static class PartyData {
+    /**
+     * Check if a player is a moderator in their party.
+     */
+    public static boolean isModerator(Player p) {
+        for (PartyData pd : parties) {
+            if (pd.members.contains(p)) {
+                return pd.moderators.contains(p);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get the PartyData for any member (not just owner).
+     */
+    public static PartyData getPartyDataByPlayer(Player p) {
+        for (PartyData pd : parties) {
+            if (pd.members.contains(p)) {
+                return pd;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get disconnected party members for a party.
+     */
+    public static Map<UUID, String> getDisconnectedMembers(PartyData party) {
+        Map<UUID, String> result = new LinkedHashMap<>();
+        for (Map.Entry<UUID, PartyData> entry : disconnectedPartyMap.entrySet()) {
+            if (entry.getValue() == party) {
+                String name = disconnectedNames.get(entry.getKey());
+                if (name != null) result.put(entry.getKey(), name);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Remove all disconnected (grace-period) members from a party.
+     * @return number of members removed
+     */
+    public static int kickOfflineMembers(PartyData party) {
+        int count = 0;
+        Iterator<Map.Entry<UUID, PartyData>> it = disconnectedPartyMap.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, PartyData> entry = it.next();
+            if (entry.getValue() == party) {
+                UUID uuid = entry.getKey();
+                BukkitTask task = reconnectTasks.remove(uuid);
+                if (task != null) task.cancel();
+                disconnectedNames.remove(uuid);
+                it.remove();
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public static class PartyData {
 
         private List<Player> members = new ArrayList<>();
+        private Set<Player> moderators = new HashSet<>();
         private Player owner;
+        private boolean allInvite = false;
+        private boolean privateGame = false;
+        private boolean muted = false;
 
         public PartyData(Player p) {
             owner = p;
@@ -463,6 +560,34 @@ public class Internal implements Party {
 
         void addMember(Player p) {
             members.add(p);
+        }
+
+        public Set<Player> getModerators() {
+            return moderators;
+        }
+
+        public boolean isAllInvite() {
+            return allInvite;
+        }
+
+        public void setAllInvite(boolean allInvite) {
+            this.allInvite = allInvite;
+        }
+
+        public boolean isPrivateGame() {
+            return privateGame;
+        }
+
+        public void setPrivateGame(boolean privateGame) {
+            this.privateGame = privateGame;
+        }
+
+        public boolean isMuted() {
+            return muted;
+        }
+
+        public void setMuted(boolean muted) {
+            this.muted = muted;
         }
     }
 }

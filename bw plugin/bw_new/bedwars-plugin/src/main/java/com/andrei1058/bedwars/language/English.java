@@ -83,16 +83,25 @@ public class English extends Language {
         yml.addDefault(Messages.COMMAND_LEAVE_MSG, "{prefix}&7{player} &ehas quit!");
         yml.addDefault(Messages.COMMAND_NOT_ALLOWED_IN_GAME, "{prefix}&cYou can't do this during the game.");
         yml.addDefault(Messages.COMMAND_NOT_FOUND_OR_INSUFF_PERMS, "{prefix}&cCommand not found or you don't have permission!");
-        yml.addDefault(Messages.COMMAND_PARTY_HELP, Arrays.asList("&6▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+        yml.addDefault(Messages.COMMAND_PARTY_HELP, Arrays.asList("",
                 "&aParty Commands:",
-                "&e/party help &7- &bPrints this help message",
-                "&e/party invite <player> &7- &bInvites the player to your party",
-                "&e/party leave &7- &bLeaves the current party",
-                "&e/party remove <player> &7- &bRemove the player from the party",
-                "&e/party info &7- &bShow party members and owner",
-                "&e/party promote <player> &7- &bTransfer party ownership",
-                "&e/party accept <player> &7- &bAccept a party invite",
-                "&e/party disband &7- &bDisbands the party")
+                "&e/party accept <player> &7- &bAccept a party invite from a player",
+                "&e/party chat &7- &bSend a chat message to the entire party",
+                "&e/party demote <player> &7- &bDemotes another party member from Moderator to Member",
+                "&e/party disband &7- &bDisbands the party",
+                "&e/party invite <players..> &7- &bInvite another player to your party",
+                "&e/party kick <player> &7- &bRemove a player from your party",
+                "&e/party kickoffline &7- &bRemove all players that are offline in your party",
+                "&e/party leave &7- &bLeaves your current party",
+                "&e/party list &7- &bLists the players in your current party",
+                "&e/party mute &7- &bMutes party chat so only Staff, Party Mods and the leader can chat",
+                "&e/party poll <question/answer/answer/answer..> &7- &bCreates a poll",
+                "&e/party private &7- &bEnables private games for your party",
+                "&e/party promote <player> &7- &bPromotes another party member",
+                "&e/party setting <setting> <value> &7- &bToggles party settings",
+                "&e/party transfer <player> &7- &bTransfers the party to another player",
+                "&e/party warp &7- &bWarps the members of a party to your current server",
+                "")
         );
         yml.addDefault(Messages.COMMAND_PARTY_INVITE_USAGE, "{prefix}&eUsage: &7/party invite <player>");
         yml.addDefault(Messages.COMMAND_PARTY_INVITE_DENIED_PLAYER_OFFLINE, "{prefix}&7{player} &eis not online!");
@@ -121,6 +130,32 @@ public class English extends Language {
         yml.addDefault(Messages.COMMAND_PARTY_WARP_SUCCESS, "{prefix}&aWarping party members...");
         yml.addDefault(Messages.COMMAND_PARTY_WARP_WARPED, "{prefix}&eYou have been warped by &7{owner}");
         yml.addDefault(Messages.COMMAND_PARTY_WARP_NOT_IN_ARENA, "{prefix}&cYou must be in a waiting arena to warp your party!");
+        yml.addDefault(Messages.COMMAND_PARTY_DEMOTE_SUCCESS, "&9Party &8> &e{player} &ahas been demoted to Party Member.");
+        yml.addDefault(Messages.COMMAND_PARTY_DEMOTE_USAGE, "&9Party &8> &eUsage: &7/party demote <player>");
+        yml.addDefault(Messages.COMMAND_PARTY_DEMOTE_NOT_MOD, "&9Party &8> &c{player} is not a party moderator.");
+        yml.addDefault(Messages.COMMAND_PARTY_KICKOFFLINE_SUCCESS, "&9Party &8> &aRemoved &e{count} &aoffline player(s) from the party.");
+        yml.addDefault(Messages.COMMAND_PARTY_KICKOFFLINE_NONE, "&9Party &8> &cThere are no offline players in the party.");
+        yml.addDefault(Messages.COMMAND_PARTY_MUTE_ENABLED, "&9Party &8> &eParty chat has been &cmuted&e.");
+        yml.addDefault(Messages.COMMAND_PARTY_MUTE_DISABLED, "&9Party &8> &eParty chat has been &aunmuted&e.");
+        yml.addDefault(Messages.COMMAND_PARTY_MUTED_CANNOT_CHAT, "&9Party &8> &cThe party is currently muted.");
+        yml.addDefault(Messages.COMMAND_PARTY_PRIVATE_ENABLED, "&9Party &8> &ePrivate games have been &aenabled&e.");
+        yml.addDefault(Messages.COMMAND_PARTY_PRIVATE_DISABLED, "&9Party &8> &ePrivate games have been &cdisabled&e.");
+        yml.addDefault(Messages.COMMAND_PARTY_POLL_USAGE, "&9Party &8> &eUsage: &7/party poll <question/answer1/answer2/...>");
+        yml.addDefault(Messages.COMMAND_PARTY_POLL_QUESTION, "&9Party &8> &b{player} &ecreated a poll: &a{question}");
+        yml.addDefault(Messages.COMMAND_PARTY_POLL_ANSWER, " &e{number}. &b{answer} &7(Click to vote)");
+        yml.addDefault(Messages.COMMAND_PARTY_SETTING_HELP, Arrays.asList("",
+                "&aParty Settings",
+                "&e/p setting allinvite &7- &bToggles all invite",
+                "&e/p private &7- &bToggles private games",
+                "&e/p mute &7- &bMutes the party chat",
+                ""));
+        yml.addDefault(Messages.COMMAND_PARTY_SETTING_ALLINVITE_ON, "&9Party &8> &eAll invite has been &aenabled&e. All party members can now invite.");
+        yml.addDefault(Messages.COMMAND_PARTY_SETTING_ALLINVITE_OFF, "&9Party &8> &eAll invite has been &cdisabled&e. Only the leader and mods can invite.");
+        yml.addDefault(Messages.COMMAND_PARTY_PROMOTE_TO_MOD, "&9Party &8> &e{player} &ahas been promoted to Party Moderator.");
+        yml.addDefault(Messages.COMMAND_PARTY_PROMOTED_TO_MOD, "&9Party &8> &aYou have been promoted to Party Moderator.");
+        yml.addDefault(Messages.COMMAND_PARTY_CHAT_USAGE, "&9Party &8> &eUsage: &7/chat p &eor &7/chat a");
+        yml.addDefault(Messages.COMMAND_PARTY_CHAT_MODE_PARTY, "&9Party &8> &eChat mode set to &aParty&e. All messages go to your party.");
+        yml.addDefault(Messages.COMMAND_PARTY_CHAT_MODE_ALL, "&9Party &8> &eChat mode set to &aAll&e. Messages go to public chat.");
         yml.addDefault(Messages.COMMAND_FORCESTART_NOT_IN_GAME, "§c▪ §7You're not playing!");
         yml.addDefault(Messages.COMMAND_FORCESTART_SUCCESS, "§c▪ §7Countdown shortened!");
         yml.addDefault(Messages.COMMAND_FORCESTART_NO_PERM, "{prefix}&7You can't forcestart the arena.\n§7Please consider donating for VIP features.");
