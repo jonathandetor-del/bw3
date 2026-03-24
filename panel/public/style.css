@@ -91,7 +91,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 
 .info-sidebar {
   width: 240px; background: var(--bg-sidebar); border-left: 1px solid var(--border);
-  padding: 16px; overflow-y: auto; flex-shrink: 0;
+  padding: 16px; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column;
 }
 .info-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
 .info-card h3 { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
@@ -186,10 +186,78 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 }
 .setting-val:focus { border-color: var(--accent); }
 
-/* ---- Files iframe ---- */
-.files-frame {
-  width: 100%; height: 100%; border: none; border-radius: 8px; background: var(--bg-card);
+/* ---- File Manager ---- */
+.fm { display: flex; flex-direction: column; height: 100%; }
+.fm-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; flex-wrap: wrap; gap: 10px;
 }
+.fm-breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 14px; flex-wrap: wrap; }
+.fm-crumb { cursor: pointer; color: var(--accent); font-weight: 600; }
+.fm-crumb:hover { text-decoration: underline; }
+.fm-sep { color: var(--text-muted); }
+.fm-actions { display: flex; gap: 6px; }
+
+.fm-table-wrap { flex: 1; overflow: auto; }
+.fm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.fm-table thead { position: sticky; top: 0; background: var(--bg); z-index: 1; }
+.fm-table th {
+  text-align: left; padding: 10px 12px; color: var(--text-muted); font-weight: 600;
+  border-bottom: 1px solid var(--border); font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
+}
+.fm-th-name { width: 45%; }
+.fm-th-size { width: 12%; }
+.fm-th-mod { width: 20%; }
+.fm-th-perm { width: 12%; }
+.fm-th-act { width: 11%; text-align: right; }
+.fm-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.fm-row { transition: background .1s; }
+.fm-row:hover { background: rgba(255,255,255,.03); }
+.fm-cell-name { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.fm-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+.fm-name-text { font-weight: 500; }
+.fm-badge {
+  font-size: 10px; background: rgba(74,222,128,.15); color: var(--green);
+  padding: 2px 8px; border-radius: 10px; font-weight: 600;
+}
+.fm-perm { font-family: monospace; color: var(--text-muted); font-size: 12px; }
+.fm-cell-actions { text-align: right; white-space: nowrap; }
+.fm-act-btn {
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  margin-left: 4px; transition: all .15s;
+}
+.fm-act-btn:hover { border-color: var(--accent); color: var(--accent); }
+.fm-act-del:hover { border-color: var(--red); color: var(--red); }
+.fm-act-extract:hover { border-color: var(--green); color: var(--green); }
+
+/* File Editor */
+.fm-editor { display: flex; flex-direction: column; height: 100%; }
+.fm-editor-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+}
+.fm-editor-path { font-size: 14px; color: var(--text-muted); }
+.fm-editor-area {
+  flex: 1; min-height: 400px; background: #0a0a14; border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px; color: var(--text); font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 13px; line-height: 1.6; resize: none; outline: none;
+}
+.fm-editor-area:focus { border-color: var(--accent); }
+
+/* ---- Gauges (sidebar bottom) ---- */
+.info-gauges { margin-top: auto; padding-top: 12px; }
+.gauge-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 0; font-size: 13px;
+}
+.gauge-icon { font-size: 15px; width: 18px; text-align: center; }
+.gauge-bar {
+  flex: 1; height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden;
+}
+.gauge-fill { height: 100%; border-radius: 4px; transition: width .5s; }
+.gauge-cpu { background: linear-gradient(90deg, var(--green), var(--yellow)); }
+.gauge-disk { background: linear-gradient(90deg, var(--orange), var(--red)); }
+.gauge-val { font-size: 12px; color: var(--text-muted); min-width: 80px; text-align: right; }
 
 /* ---- Page header ---- */
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }

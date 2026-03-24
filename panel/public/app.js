@@ -115,6 +115,22 @@
       $('#info-cpu').textContent = d.cpuLoad !== undefined ? d.cpuLoad.toFixed(2) : 'N/A';
       $('#info-uptime').textContent = d.uptime ? formatUptime(d.uptime) : 'N/A';
       $('#info-world').textContent = d.worldSize ? formatBytes(d.worldSize) : 'N/A';
+
+      // CPU gauge (load avg — cap at 100% based on 4-core assumption)
+      const cpuPct = Math.min(100, Math.round((d.cpuLoad || 0) * 25));
+      const cpuEl = $('#gauge-cpu');
+      if (cpuEl) { cpuEl.style.width = cpuPct + '%'; }
+      const cpuVal = $('#gauge-cpu-val');
+      if (cpuVal) cpuVal.textContent = cpuPct + '%';
+
+      // Disk gauge
+      if (d.diskTotal > 0) {
+        const diskPct = Math.round(d.diskUsed / d.diskTotal * 100);
+        const diskEl = $('#gauge-disk');
+        if (diskEl) diskEl.style.width = diskPct + '%';
+        const diskVal = $('#gauge-disk-val');
+        if (diskVal) diskVal.textContent = `${formatBytes(d.diskUsed)} / ${formatBytes(d.diskTotal)}`;
+      }
     } catch (_) {}
 
     // Quick player list
@@ -366,8 +382,213 @@
   }
 
   // --- Files ---
-  function renderFiles(c) {
-    c.innerHTML = '<iframe class="files-frame" src="/files/"></iframe>';
+  let filePath = [];
+
+  async function renderFiles(c) {
+    const pathStr = filePath.join('/');
+    c.innerHTML = `
+      <div class="fm">
+        <div class="fm-toolbar">
+          <div class="fm-breadcrumb" id="fm-bread"></div>
+          <div class="fm-actions">
+            <label class="btn btn-green btn-sm fm-upload-btn">&#x2B06; Upload
+              <input type="file" id="fm-upload-input" multiple style="display:none">
+            </label>
+            <button class="btn btn-accent btn-sm" id="fm-new-folder">&#x1F4C1; New Folder</button>
+            <button class="btn btn-accent btn-sm" id="fm-new-file">&#x1F4C4; New File</button>
+          </div>
+        </div>
+        <div class="fm-table-wrap">
+          <table class="fm-table">
+            <thead>
+              <tr>
+                <th class="fm-th-name">Name</th>
+                <th class="fm-th-size">Size</th>
+                <th class="fm-th-mod">Modified</th>
+                <th class="fm-th-perm">Permissions</th>
+                <th class="fm-th-act">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="fm-body"><tr><td colspan="5" class="empty-state">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>`;
+
+    renderBreadcrumb();
+    await loadDir();
+
+    $('#fm-upload-input').addEventListener('change', async (e) => {
+      for (const file of e.target.files) {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          await fetch(`/api/files/upload?path=${encodeURIComponent(pathStr)}&name=${encodeURIComponent(file.name)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            credentials: 'same-origin',
+            body: reader.result
+          });
+          loadDir();
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    });
+
+    $('#fm-new-folder').addEventListener('click', async () => {
+      const name = prompt('Folder name:');
+      if (!name) return;
+      await api('POST', '/api/files/mkdir', { path: pathStr ? pathStr + '/' + name : name });
+      loadDir();
+    });
+
+    $('#fm-new-file').addEventListener('click', async () => {
+      const name = prompt('File name:');
+      if (!name) return;
+      await api('PUT', '/api/files/write', { path: pathStr ? pathStr + '/' + name : name, content: '' });
+      loadDir();
+    });
+  }
+
+  function renderBreadcrumb() {
+    const el = $('#fm-bread');
+    if (!el) return;
+    let html = '<span class="fm-crumb" data-idx="-1">&#x1F3E0; server</span>';
+    filePath.forEach((seg, i) => {
+      html += ` <span class="fm-sep">›</span> <span class="fm-crumb" data-idx="${i}">${escapeHtml(seg)}</span>`;
+    });
+    el.innerHTML = html;
+    el.querySelectorAll('.fm-crumb').forEach(cr => {
+      cr.addEventListener('click', () => {
+        const idx = parseInt(cr.dataset.idx);
+        filePath = idx < 0 ? [] : filePath.slice(0, idx + 1);
+        renderBreadcrumb();
+        loadDir();
+      });
+    });
+  }
+
+  async function loadDir() {
+    const pathStr = filePath.join('/');
+    const tbody = $('#fm-body');
+    if (!tbody) return;
+    try {
+      const data = await api('GET', `/api/files?path=${encodeURIComponent(pathStr)}`);
+      if (!data.entries || data.entries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Empty folder</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.entries.map(e => {
+        const icon = e.isDir ? '&#x1F4C1;' : getFileIcon(e.name);
+        const sizeStr = e.isDir ? '&mdash;' : formatBytes(e.size);
+        const modStr = e.modified ? new Date(e.modified).toLocaleString('en-GB', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '&mdash;';
+        const permStr = e.permissions || '&mdash;';
+        const editable = !e.isDir && isEditable(e.name);
+        const fp = pathStr ? pathStr + '/' + e.name : e.name;
+        return `<tr class="fm-row" data-name="${escapeHtml(e.name)}" data-dir="${e.isDir}" data-path="${escapeHtml(fp)}">
+          <td class="fm-cell-name">
+            <span class="fm-icon">${icon}</span>
+            <span class="fm-name-text">${escapeHtml(e.name)}</span>
+            ${editable ? '<span class="fm-badge">editable</span>' : ''}
+          </td>
+          <td>${sizeStr}</td>
+          <td>${modStr}</td>
+          <td class="fm-perm">${permStr}</td>
+          <td class="fm-cell-actions">
+            ${!e.isDir ? `<button class="fm-act-btn" data-action="download" title="Download">&#x2B07;</button>` : ''}
+            ${editable ? `<button class="fm-act-btn" data-action="edit" title="Edit">&#x270E;</button>` : ''}
+            ${isArchive(e.name) ? `<button class="fm-act-btn fm-act-extract" data-action="extract" title="Extract">&#x1F4E6;</button>` : ''}
+            <button class="fm-act-btn fm-act-del" data-action="delete" title="Delete">&#x1F5D1;</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      // Click handlers
+      tbody.querySelectorAll('.fm-row').forEach(row => {
+        row.querySelector('.fm-cell-name').addEventListener('click', () => {
+          if (row.dataset.dir === 'true') {
+            filePath.push(row.dataset.name);
+            renderBreadcrumb();
+            loadDir();
+          }
+        });
+        row.querySelectorAll('.fm-act-btn').forEach(btn => {
+          btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const action = btn.dataset.action;
+            const fp = row.dataset.path;
+            if (action === 'delete') deleteFile(fp);
+            else if (action === 'download') downloadFile(fp);
+            else if (action === 'edit') editFile(fp);
+            else if (action === 'extract') extractFile(fp);
+          });
+        });
+      });
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Error: ${escapeHtml(e.message)}</td></tr>`;
+    }
+  }
+
+  function isEditable(name) {
+    return /\.(yml|yaml|json|properties|txt|cfg|conf|sk|toml|xml|log|md|csv|sh|bat)$/i.test(name);
+  }
+
+  function isArchive(name) {
+    return /\.(zip|tar|tar\.gz|tgz|tar\.bz2|gz)$/i.test(name);
+  }
+
+  function getFileIcon(name) {
+    if (/\.jar$/i.test(name)) return '<span style="color:var(--red)">&#x1F4E6;</span>';
+    if (/\.(zip|tar|tar\.gz|tgz|tar\.bz2|gz)$/i.test(name)) return '<span style="color:var(--orange)">&#x1F4E6;</span>';
+    if (/\.(yml|yaml|json|properties|toml|xml|cfg|conf)$/i.test(name)) return '<span style="color:var(--green)">&#x1F4C4;</span>';
+    if (/\.(txt|md|log)$/i.test(name)) return '&#x1F4C3;';
+    return '&#x1F4C4;';
+  }
+
+  async function extractFile(fp) {
+    if (!confirm(`Extract "${fp}" to the same folder?`)) return;
+    try {
+      const res = await api('POST', '/api/files/extract', { path: fp });
+      if (res.ok) { alert('Extracted successfully!'); loadDir(); }
+      else alert('Error: ' + (res.error || 'Unknown'));
+    } catch (e) { alert('Error: ' + e.message); }
+  }
+
+  async function deleteFile(fp) {
+    if (!confirm(`Delete "${fp}"?`)) return;
+    await api('DELETE', `/api/files?path=${encodeURIComponent(fp)}`);
+    loadDir();
+  }
+
+  function downloadFile(fp) {
+    const a = document.createElement('a');
+    a.href = `/api/files/download?path=${encodeURIComponent(fp)}`;
+    a.download = '';
+    a.click();
+  }
+
+  async function editFile(fp) {
+    const c = $('#content');
+    c.innerHTML = `
+      <div class="fm-editor">
+        <div class="fm-editor-header">
+          <span class="fm-editor-path">&#x270E; ${escapeHtml(fp)}</span>
+          <div>
+            <button class="btn btn-accent btn-sm" id="fm-save">Save</button>
+            <button class="btn btn-muted btn-sm" id="fm-back">Back</button>
+          </div>
+        </div>
+        <textarea class="fm-editor-area" id="fm-editor-content">Loading...</textarea>
+      </div>`;
+    try {
+      const data = await api('GET', `/api/files/read?path=${encodeURIComponent(fp)}`);
+      $('#fm-editor-content').value = data.content;
+    } catch (e) {
+      $('#fm-editor-content').value = 'Error: ' + e.message;
+    }
+    $('#fm-save').addEventListener('click', async () => {
+      await api('PUT', '/api/files/write', { path: fp, content: $('#fm-editor-content').value });
+      alert('Saved!');
+    });
+    $('#fm-back').addEventListener('click', () => renderFiles($('#content')));
   }
 
   // --- Init: check if already authed ---

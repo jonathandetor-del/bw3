@@ -55,7 +55,8 @@ async function getRcon() {
   return rcon;
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.raw({ type: 'application/octet-stream', limit: '512mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ---- Auth endpoints ----
@@ -130,7 +131,20 @@ app.get('/api/info', auth, async (req, res) => {
       worldSize = parseInt(out.trim()) || 0;
     } catch (_) {}
 
-    res.json({ tps, playerCount, maxPlayers, memUsed, memTotal, cpuLoad, uptime, worldSize });
+    // Disk usage
+    let diskUsed = 0, diskTotal = 0;
+    try {
+      const df = require('child_process').execSync(
+        `df -B1 /data 2>/dev/null | tail -1`, { encoding: 'utf8', timeout: 5000 }
+      );
+      const parts = df.trim().split(/\s+/);
+      if (parts.length >= 4) {
+        diskTotal = parseInt(parts[1]) || 0;
+        diskUsed = parseInt(parts[2]) || 0;
+      }
+    } catch (_) {}
+
+    res.json({ tps, playerCount, maxPlayers, memUsed, memTotal, cpuLoad, uptime, worldSize, diskUsed, diskTotal });
   } catch (e) {
     res.json({ tps: 'N/A', playerCount: 0, maxPlayers: 0, memUsed: 0, memTotal: 0, cpuLoad: 0, uptime: 0, worldSize: 0, error: e.message });
   }
@@ -300,6 +314,139 @@ app.post('/api/server/stop', auth, async (req, res) => {
     res.json({ ok: true, message: 'Server stopping...' });
   } catch (e) {
     res.json({ error: e.message });
+  }
+});
+
+// ---- File Manager API ----
+
+function safePath(p) {
+  const resolved = path.resolve(DATA_DIR, p || '');
+  if (!resolved.startsWith(DATA_DIR)) return null;
+  return resolved;
+}
+
+app.get('/api/files', auth, (req, res) => {
+  const dirPath = safePath(req.query.path || '/');
+  if (!dirPath) return res.status(400).json({ error: 'Invalid path' });
+  try {
+    if (!fs.existsSync(dirPath)) return res.status(404).json({ error: 'Not found' });
+    const stat = fs.statSync(dirPath);
+    if (!stat.isDirectory()) return res.status(400).json({ error: 'Not a directory' });
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true }).map(e => {
+      const fp = path.join(dirPath, e.name);
+      let s = { size: 0, mtime: null, mode: '' };
+      try {
+        const st = fs.statSync(fp);
+        s.size = st.size;
+        s.mtime = st.mtime;
+        s.mode = '0' + (st.mode & 0o777).toString(8);
+      } catch (_) {}
+      return { name: e.name, isDir: e.isDirectory(), size: s.size, modified: s.mtime, permissions: s.mode };
+    });
+    entries.sort((a, b) => (b.isDir - a.isDir) || a.name.localeCompare(b.name));
+    res.json({ path: path.relative(DATA_DIR, dirPath) || '.', entries });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/files/read', auth, (req, res) => {
+  const fp = safePath(req.query.path);
+  if (!fp) return res.status(400).json({ error: 'Invalid path' });
+  try {
+    const stat = fs.statSync(fp);
+    if (stat.size > 10 * 1024 * 1024) return res.status(400).json({ error: 'File too large to edit (>10MB)' });
+    const content = fs.readFileSync(fp, 'utf8');
+    res.json({ content, size: stat.size });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/files/write', auth, (req, res) => {
+  const fp = safePath(req.body.path);
+  if (!fp) return res.status(400).json({ error: 'Invalid path' });
+  try {
+    fs.writeFileSync(fp, req.body.content, 'utf8');
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/files/mkdir', auth, (req, res) => {
+  const fp = safePath(req.body.path);
+  if (!fp) return res.status(400).json({ error: 'Invalid path' });
+  try {
+    fs.mkdirSync(fp, { recursive: true });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/files/upload', auth, (req, res) => {
+  const dir = safePath(req.query.path || '/');
+  const name = req.query.name;
+  if (!dir || !name || name.includes('..') || name.includes('/') || name.includes('\\')) {
+    return res.status(400).json({ error: 'Invalid path or filename' });
+  }
+  const fp = path.join(dir, name);
+  if (!fp.startsWith(DATA_DIR)) return res.status(400).json({ error: 'Invalid path' });
+  try {
+    fs.writeFileSync(fp, req.body);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/files', auth, (req, res) => {
+  const fp = safePath(req.query.path);
+  if (!fp || fp === DATA_DIR) return res.status(400).json({ error: 'Invalid path' });
+  try {
+    const stat = fs.statSync(fp);
+    if (stat.isDirectory()) fs.rmSync(fp, { recursive: true, force: true });
+    else fs.unlinkSync(fp);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/files/download', auth, (req, res) => {
+  const fp = safePath(req.query.path);
+  if (!fp) return res.status(400).json({ error: 'Invalid path' });
+  try {
+    res.download(fp);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/files/extract', auth, (req, res) => {
+  const fp = safePath(req.body.path);
+  if (!fp) return res.status(400).json({ error: 'Invalid path' });
+  const dir = path.dirname(fp);
+  const base = path.basename(fp);
+  const { execSync } = require('child_process');
+  try {
+    if (/\.zip$/i.test(base)) {
+      execSync(`unzip -o "${fp}" -d "${dir}"`, { timeout: 120000 });
+    } else if (/\.tar\.gz$|\.tgz$/i.test(base)) {
+      execSync(`tar -xzf "${fp}" -C "${dir}"`, { timeout: 120000 });
+    } else if (/\.tar\.bz2$/i.test(base)) {
+      execSync(`tar -xjf "${fp}" -C "${dir}"`, { timeout: 120000 });
+    } else if (/\.tar$/i.test(base)) {
+      execSync(`tar -xf "${fp}" -C "${dir}"`, { timeout: 120000 });
+    } else if (/\.gz$/i.test(base)) {
+      execSync(`gunzip -k "${fp}"`, { timeout: 120000 });
+    } else {
+      return res.status(400).json({ error: 'Unsupported archive format' });
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
