@@ -431,7 +431,7 @@ fi
 cd "$SERVER_DIR"
 
 # Built-in web file manager (File Browser)
-FILE_MANAGER_PORT="${FILE_MANAGER_PORT:-8080}"
+FILE_MANAGER_PORT="${FILE_MANAGER_PORT:-8081}"
 FILE_MANAGER_USERNAME="${FILE_MANAGER_USERNAME:-admin}"
 FILE_MANAGER_PASSWORD="${FILE_MANAGER_PASSWORD:-adminadmin123}"
 FILE_MANAGER_DB="${FILE_MANAGER_DB:-/data/.filebrowser.db}"
@@ -457,6 +457,22 @@ if command -v filebrowser >/dev/null 2>&1; then
     echo "File manager started on port ${FILE_MANAGER_PORT} (user: ${FILE_MANAGER_USERNAME})"
 else
     echo "File manager binary not found; skipping file manager startup"
+fi
+
+# Web console (ttyd + mcrcon) — accessible at /console
+CONSOLE_USERNAME="${FILE_MANAGER_USERNAME}"
+CONSOLE_PASSWORD="${FILE_MANAGER_PASSWORD}"
+if command -v ttyd >/dev/null 2>&1; then
+    ttyd -p 7681 -b /console \
+        -c "${CONSOLE_USERNAME}:${CONSOLE_PASSWORD}" \
+        /server/console.sh >/tmp/ttyd.log 2>&1 &
+    echo "Web console started (ttyd) — /console"
+fi
+
+# Nginx reverse proxy — combines file manager + console on port 8080
+if command -v nginx >/dev/null 2>&1; then
+    nginx -g 'daemon on;'
+    echo "Nginx reverse proxy started on port 8080"
 fi
 
 # Railway TCP proxy forwards external traffic to port 25565.

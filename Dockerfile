@@ -28,6 +28,29 @@ RUN ARCH="$(uname -m)" && \
         chmod +x /usr/local/bin/filebrowser && \
         rm -f /tmp/filebrowser.tar.gz
 
+# Install nginx (reverse proxy for file manager + web console on single port)
+RUN apk add --no-cache nginx
+
+# Install ttyd (web-based terminal)
+ARG TTYD_VERSION=1.7.7
+RUN ARCH="$(uname -m)" && \
+    case "$ARCH" in \
+        x86_64) TTYD_ARCH="x86_64" ;; \
+        aarch64) TTYD_ARCH="aarch64" ;; \
+        *) echo "Unsupported arch: $ARCH" && exit 1 ;; \
+    esac && \
+    curl -fsSL "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.${TTYD_ARCH}" \
+        -o /usr/local/bin/ttyd && \
+    chmod +x /usr/local/bin/ttyd
+
+# Build mcrcon (Minecraft RCON CLI client)
+RUN apk add --no-cache --virtual .build-deps gcc musl-dev && \
+    curl -fsSL https://github.com/Tiiffi/mcrcon/archive/refs/tags/v0.7.2.tar.gz | tar xz -C /tmp && \
+    cd /tmp/mcrcon-0.7.2 && \
+    gcc -std=gnu11 -pedantic -Wall -Wextra -O2 -s -o /usr/local/bin/mcrcon mcrcon.c && \
+    rm -rf /tmp/mcrcon-0.7.2 && \
+    apk del .build-deps
+
 # Create server directory and non-root user for security
 RUN adduser -D -h /server -s /bin/bash minecraft && \
     mkdir -p /server/plugins /server/worlds && \
@@ -76,6 +99,11 @@ RUN mkdir -p /server/maps
 
 # Copy ops.json
 COPY --chown=minecraft:minecraft ops.json /server/ops.json
+
+# Copy nginx config and console wrapper
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY --chown=minecraft:minecraft console.sh /server/console.sh
+RUN chmod +x /server/console.sh
 
 RUN chmod +x /server/start.sh
 
