@@ -65,10 +65,7 @@ sync_server_runtime_files() {
     cp -f /server/server.jar /data/server.jar
     cp -f /server/start.sh /data/start.sh
     chmod +x /data/start.sh
-    for jar in /server/plugins/*.jar; do
-        [ -f "$jar" ] || continue
-        cp -f "$jar" /data/plugins/
-    done
+    # Plugins are managed manually via the panel — no longer synced from image.
 
     # Keep existing runtime settings; only seed defaults when missing.
     # FlamePaper uses paper.yml (already handled above).

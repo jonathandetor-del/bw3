@@ -77,8 +77,7 @@ COPY --chown=minecraft:minecraft wepif.yml /server/wepif.yml
 COPY --chown=minecraft:minecraft eula.txt /server/eula.txt
 COPY --chown=minecraft:minecraft start.sh /server/start.sh
 
-# Copy all plugin JARs (BedWars + companions)
-COPY --chown=minecraft:minecraft plugins-extra/*.jar /server/plugins/
+# Plugins are managed manually via the panel — no longer synced from image.
 
 # Copy Skript scripts
 COPY --chown=minecraft:minecraft skript-scripts/ /server/plugins/Skript/scripts/
