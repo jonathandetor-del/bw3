@@ -22,6 +22,11 @@ name = "filebrowser"
 port = 8080
 protocol = "TCP"
 
+[[services.ports]]
+name = "rcon"
+port = 25575
+protocol = "TCP"
+
 # Environment Variables
 [env]
 # Minecraft Server Configuration

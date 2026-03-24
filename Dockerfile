@@ -85,8 +85,8 @@ RUN echo "build-$(date +%s)" > /server/.image-version
 # Create persistent data directory (mount Railway volume at /data)
 RUN mkdir -p /data && chown minecraft:minecraft /data
 
-# Expose Minecraft + file manager ports
-EXPOSE 25565 8080
+# Expose Minecraft + file manager + RCON ports
+EXPOSE 25565 8080 25575
 
 # Run as root so we can fix volume permissions at startup, then java runs as minecraft
 # (Railway volume mounts override build-time ownership)
