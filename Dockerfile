@@ -1,7 +1,7 @@
 # ============================================================
 # FlamePaper 1.8.8 BedWars Server — Railway Production Dockerfile
 # ============================================================
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:17-jre-alpine
 
 # Labels
 LABEL maintainer="BedWars Server" \
