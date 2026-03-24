@@ -113,8 +113,8 @@ public class Internal implements Party {
     public void removeFromParty(Player member) {
         for (PartyData p : new ArrayList<>(getParties())) {
             if (p.owner == member) {
-                // Owner leaving: auto-promote if 2+ other members remain
-                if (p.members.size() > 2) {
+                // Owner leaving: auto-promote if any other members remain
+                if (p.members.size() > 1) {
                     // Prefer a moderator for promotion
                     Player newOwner = null;
                     for (Player mod : p.moderators) {
@@ -152,8 +152,14 @@ public class Internal implements Party {
                 p.members.remove(member);
                 p.moderators.remove(member);
                 chatModes.remove(member.getUniqueId());
-                if (p.members.isEmpty() || p.members.size() == 1) {
-                    disband(p.owner);
+                if (p.members.size() <= 1) {
+                    if (!p.members.isEmpty()) {
+                        Player last = p.members.get(0);
+                        last.sendMessage("\u00A79Party \u00A78> \u00A7cThe party was disbanded because all other members left.");
+                        chatModes.remove(last.getUniqueId());
+                    }
+                    cancelReconnectTasksForParty(p);
+                    p.members.clear();
                     parties.remove(p);
                 }
                 return;
@@ -196,8 +202,14 @@ public class Internal implements Party {
                 p.members.remove(target);
                 p.moderators.remove(target);
                 chatModes.remove(target.getUniqueId());
-                if (p.members.isEmpty() || p.members.size() == 1) {
-                    disband(p.owner);
+                if (p.members.size() <= 1) {
+                    if (!p.members.isEmpty()) {
+                        Player last = p.members.get(0);
+                        last.sendMessage("\u00A79Party \u00A78> \u00A7cThe party was disbanded because all other members left.");
+                        chatModes.remove(last.getUniqueId());
+                    }
+                    cancelReconnectTasksForParty(p);
+                    p.members.clear();
                     parties.remove(p);
                 }
             }
@@ -289,8 +301,8 @@ public class Internal implements Party {
                     }
                 }
             }
-            if (newOwner == null || party.members.size() <= 2) {
-                // Only 1 or 0 other members — disband, no grace
+            if (newOwner == null || party.members.size() <= 1) {
+                // Only the owner — disband, no grace
                 getParty().disband(p);
                 chatModes.remove(uuid);
                 return;
@@ -311,9 +323,14 @@ public class Internal implements Party {
 
         // Check if party too small after removal
         if (party.members.size() <= 1) {
-            // Only 1 member left — disband, no grace for the quitter
+            // Only 1 member left — disband with notification
             if (!party.members.isEmpty()) {
-                getParty().disband(party.owner);
+                Player last = party.owner;
+                last.sendMessage("\u00A79Party \u00A78> \u00A7cThe party was disbanded because all other members left.");
+                chatModes.remove(last.getUniqueId());
+                cancelReconnectTasksForParty(party);
+                party.members.clear();
+                parties.remove(party);
             }
             return;
         }
@@ -343,9 +360,14 @@ public class Internal implements Party {
                 mem.sendMessage("\u00A79Party \u00A78> \u00A7c" + name + " was removed from the party (disconnected).");
             }
 
-            // If party too small now, disband
+            // If party too small now, disband with notification
             if (pd.members.size() <= 1 && !pd.members.isEmpty()) {
-                getParty().disband(pd.owner);
+                Player last = pd.owner;
+                last.sendMessage("\u00A79Party \u00A78> \u00A7cThe party was disbanded because all other members left.");
+                chatModes.remove(last.getUniqueId());
+                cancelReconnectTasksForParty(pd);
+                pd.members.clear();
+                parties.remove(pd);
             }
         }, RECONNECT_GRACE_TICKS);
 

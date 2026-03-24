@@ -515,19 +515,7 @@ public class Arena implements IArena {
             /* check if you can start the arena */
             boolean isStatusChange = false;
             if (status == GameState.waiting) {
-                int teams = 0, teammates = 0;
-                for (Player on : getPlayers()) {
-                    if (getParty().isOwner(on)) {
-                        teams++;
-                    }
-                    if (getParty().hasParty(on)) {
-                        teammates++;
-                    }
-                }
-                if (minPlayers <= players.size() && teams > 0 && players.size() != teammates / teams) {
-                    changeStatus(GameState.starting);
-                    isStatusChange = true;
-                } else if (players.size() >= minPlayers && teams == 0) {
+                if (players.size() >= minPlayers) {
                     changeStatus(GameState.starting);
                     isStatusChange = true;
                 }
@@ -2208,6 +2196,11 @@ public class Arena implements IArena {
      * Check if is the party owner first.
      */
     public static boolean joinRandomArena(Player p) {
+        if (getParty().hasParty(p) && !getParty().isOwner(p)) {
+            p.sendMessage(Language.getMsg(p, Messages.COMMAND_JOIN_DENIED_NOT_PARTY_LEADER));
+            return false;
+        }
+
         List<IArena> arenas = getSorted(getArenas());
 
         int amount = getParty().hasParty(p) ? (int) getParty().getMembers(p).stream().filter(member -> {
@@ -2263,6 +2256,10 @@ public class Arena implements IArena {
      * Add a player to the most filled arena from a group.
      */
     public static boolean joinRandomFromGroup(Player p, @NotNull String group) {
+        if (getParty().hasParty(p) && !getParty().isOwner(p)) {
+            p.sendMessage(Language.getMsg(p, Messages.COMMAND_JOIN_DENIED_NOT_PARTY_LEADER));
+            return false;
+        }
 
         List<IArena> arenas = getSorted(getArenas());
 
