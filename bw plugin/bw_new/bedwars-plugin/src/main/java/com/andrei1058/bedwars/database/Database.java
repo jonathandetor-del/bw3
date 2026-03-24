@@ -104,4 +104,14 @@ public interface Database {
      * @param updateSlots key is slot id and value is the element.
      */
     void pushQuickBuyChanges(HashMap<Integer, String> updateSlots, UUID uuid, List<QuickBuyElement> elementList);
+
+    /**
+     * Save hotbar preferences for a player.
+     */
+    void saveHotbarPreferences(UUID uuid, java.util.Map<String, Integer> preferences);
+
+    /**
+     * Load hotbar preferences for a player.
+     */
+    java.util.Map<String, Integer> getHotbarPreferences(UUID uuid);
 }

@@ -27,6 +27,7 @@ import com.andrei1058.bedwars.api.language.Messages;
 import com.andrei1058.bedwars.shop.ShopCache;
 import com.andrei1058.bedwars.shop.ShopManager;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -139,6 +140,16 @@ public class ShopCategory {
         for (CategoryContent cc : getCategoryContentList()) {
             inv.setItem(cc.getSlot(), cc.getItemStack(player, shopCache));
         }
+
+        // Hotbar Manager button at slot 53
+        ItemStack hotbarBtn = new ItemStack(Material.BLAZE_POWDER, 1);
+        ItemMeta hbMeta = hotbarBtn.getItemMeta();
+        if (hbMeta != null) {
+            hbMeta.setDisplayName(Language.getMsg(player, Messages.HOTBAR_MANAGER_BUTTON_NAME));
+            hbMeta.setLore(Language.getList(player, Messages.HOTBAR_MANAGER_BUTTON_LORE));
+            hotbarBtn.setItemMeta(hbMeta);
+        }
+        inv.setItem(53, hotbarBtn);
 
         player.openInventory(inv);
         if (!categoryViewers.contains(player.getUniqueId())){

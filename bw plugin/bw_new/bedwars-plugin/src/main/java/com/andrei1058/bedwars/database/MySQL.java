@@ -159,6 +159,15 @@ public class MySQL implements Database {
             try (Statement statement = connection.createStatement()) {
                 statement.executeUpdate(sql);
             }
+
+            sql = "CREATE TABLE IF NOT EXISTS hotbar_preferences (uuid VARCHAR(36) PRIMARY KEY, " +
+                    "sword INT DEFAULT -1, blocks INT DEFAULT -1, pickaxe INT DEFAULT -1, " +
+                    "axe INT DEFAULT -1, bow INT DEFAULT -1, shears INT DEFAULT -1, " +
+                    "potions INT DEFAULT -1, compass INT DEFAULT -1, utility INT DEFAULT -1, " +
+                    "blocks2 INT DEFAULT -1, utility2 INT DEFAULT -1);";
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate(sql);
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -509,6 +518,58 @@ public class MySQL implements Database {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void saveHotbarPreferences(UUID uuid, Map<String, Integer> preferences) {
+        String sql = "INSERT INTO hotbar_preferences (uuid, sword, blocks, pickaxe, axe, bow, shears, potions, compass, utility, blocks2, utility2) " +
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE " +
+                "sword=VALUES(sword), blocks=VALUES(blocks), pickaxe=VALUES(pickaxe), axe=VALUES(axe), " +
+                "bow=VALUES(bow), shears=VALUES(shears), potions=VALUES(potions), compass=VALUES(compass), " +
+                "utility=VALUES(utility), blocks2=VALUES(blocks2), utility2=VALUES(utility2);";
+        try (Connection con = dataSource.getConnection()) {
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setString(1, uuid.toString());
+                ps.setInt(2, preferences.getOrDefault("sword", -1));
+                ps.setInt(3, preferences.getOrDefault("blocks", -1));
+                ps.setInt(4, preferences.getOrDefault("pickaxe", -1));
+                ps.setInt(5, preferences.getOrDefault("axe", -1));
+                ps.setInt(6, preferences.getOrDefault("bow", -1));
+                ps.setInt(7, preferences.getOrDefault("shears", -1));
+                ps.setInt(8, preferences.getOrDefault("potions", -1));
+                ps.setInt(9, preferences.getOrDefault("compass", -1));
+                ps.setInt(10, preferences.getOrDefault("utility", -1));
+                ps.setInt(11, preferences.getOrDefault("blocks2", -1));
+                ps.setInt(12, preferences.getOrDefault("utility2", -1));
+                ps.executeUpdate();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public Map<String, Integer> getHotbarPreferences(UUID uuid) {
+        Map<String, Integer> result = new HashMap<>();
+        String[] categories = {"sword", "blocks", "pickaxe", "axe", "bow", "shears", "potions", "compass", "utility", "blocks2", "utility2"};
+        try (Connection con = dataSource.getConnection()) {
+            try (PreparedStatement ps = con.prepareStatement("SELECT * FROM hotbar_preferences WHERE uuid = ?;")) {
+                ps.setString(1, uuid.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        for (String cat : categories) {
+                            int slot = rs.getInt(cat);
+                            if (slot >= 0 && slot <= 8) {
+                                result.put(cat, slot);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return result;
     }
 
 }

@@ -26,6 +26,7 @@ import com.andrei1058.bedwars.api.arena.shop.IBuyItem;
 import com.andrei1058.bedwars.api.arena.team.TeamEnchant;
 import com.andrei1058.bedwars.api.configuration.ConfigPath;
 import com.andrei1058.bedwars.configuration.Sounds;
+import com.andrei1058.bedwars.shop.hotbar.PlayerHotbarCache;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -37,6 +38,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+
+import java.util.HashMap;
+import java.util.List;
 
 import static com.andrei1058.bedwars.BedWars.nms;
 import static com.andrei1058.bedwars.BedWars.plugin;
@@ -262,7 +266,83 @@ public class BuyItem implements IBuyItem {
             }
         }
         //
-        player.getInventory().addItem(i);
+        // Hypixel-style hotbar manager placement logic
+        int remaining = i.getAmount();
+
+        // STEP 1: Stack with ANY existing matching item in entire inventory
+        for (int slot = 0; slot < 36; slot++) {
+            if (remaining <= 0) break;
+            ItemStack existing = player.getInventory().getItem(slot);
+            if (existing != null && existing.isSimilar(i)) {
+                int canAdd = existing.getMaxStackSize() - existing.getAmount();
+                if (canAdd > 0) {
+                    int toAdd = Math.min(remaining, canAdd);
+                    existing.setAmount(existing.getAmount() + toAdd);
+                    remaining -= toAdd;
+                }
+            }
+        }
+
+        // STEP 2: Place in preferred hotbar slots
+        if (remaining > 0) {
+            List<Integer> preferredSlots = PlayerHotbarCache.getPreferredSlotsForItem(player, i);
+            for (int preferredSlot : preferredSlots) {
+                if (remaining <= 0) break;
+                if (preferredSlot < 0 || preferredSlot > 8) continue;
+                ItemStack existing = player.getInventory().getItem(preferredSlot);
+
+                if (existing == null || existing.getType() == Material.AIR) {
+                    ItemStack toPlace = i.clone();
+                    toPlace.setAmount(Math.min(remaining, i.getMaxStackSize()));
+                    player.getInventory().setItem(preferredSlot, toPlace);
+                    remaining -= toPlace.getAmount();
+                } else if (existing.isSimilar(i)) {
+                    int canAdd = existing.getMaxStackSize() - existing.getAmount();
+                    if (canAdd > 0) {
+                        int toAdd = Math.min(remaining, canAdd);
+                        existing.setAmount(existing.getAmount() + toAdd);
+                        remaining -= toAdd;
+                    }
+                } else {
+                    // Preferred slot occupied by a DIFFERENT item — relocate it
+                    int relocSlot = -1;
+                    for (int s = 0; s <= 8; s++) {
+                        if (s == preferredSlot) continue;
+                        ItemStack check = player.getInventory().getItem(s);
+                        if (check == null || check.getType() == Material.AIR) {
+                            relocSlot = s;
+                            break;
+                        }
+                    }
+                    if (relocSlot == -1) {
+                        for (int s = 9; s < 36; s++) {
+                            ItemStack check = player.getInventory().getItem(s);
+                            if (check == null || check.getType() == Material.AIR) {
+                                relocSlot = s;
+                                break;
+                            }
+                        }
+                    }
+                    if (relocSlot != -1) {
+                        player.getInventory().setItem(relocSlot, existing.clone());
+                        ItemStack toPlace = i.clone();
+                        toPlace.setAmount(Math.min(remaining, i.getMaxStackSize()));
+                        player.getInventory().setItem(preferredSlot, toPlace);
+                        remaining -= toPlace.getAmount();
+                    }
+                }
+            }
+        }
+
+        // STEP 3: Any empty slot fallback
+        if (remaining > 0) {
+            ItemStack leftover = i.clone();
+            leftover.setAmount(remaining);
+            HashMap<Integer, ItemStack> notPlaced = player.getInventory().addItem(leftover);
+            for (ItemStack drop : notPlaced.values()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), drop);
+            }
+        }
         player.updateInventory();
     }
 

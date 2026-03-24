@@ -99,6 +99,14 @@ public class SQLite implements Database {
                         "iso VARCHAR(200));";
                 st.executeUpdate(sql);
             }
+            try (Statement st = connection.createStatement()) {
+                sql = "CREATE TABLE IF NOT EXISTS hotbar_preferences (uuid VARCHAR(36) PRIMARY KEY, " +
+                        "sword INTEGER DEFAULT -1, blocks INTEGER DEFAULT -1, pickaxe INTEGER DEFAULT -1, " +
+                        "axe INTEGER DEFAULT -1, bow INTEGER DEFAULT -1, shears INTEGER DEFAULT -1, " +
+                        "potions INTEGER DEFAULT -1, compass INTEGER DEFAULT -1, utility INTEGER DEFAULT -1, " +
+                        "blocks2 INTEGER DEFAULT -1, utility2 INTEGER DEFAULT -1);";
+                st.executeUpdate(sql);
+            }
         }catch (SQLException e) {
             e.printStackTrace();
         }
@@ -481,6 +489,85 @@ public class SQLite implements Database {
 
         if (renew)
             this.connection = DriverManager.getConnection(url);
+    }
+
+    @Override
+    public void saveHotbarPreferences(UUID uuid, Map<String, Integer> preferences) {
+        try {
+            checkConnection();
+
+            boolean exists;
+            try (PreparedStatement ps = connection.prepareStatement("SELECT uuid FROM hotbar_preferences WHERE uuid = ?;")) {
+                ps.setString(1, uuid.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    exists = rs.next();
+                }
+            }
+
+            if (exists) {
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "UPDATE hotbar_preferences SET sword=?, blocks=?, pickaxe=?, axe=?, bow=?, shears=?, potions=?, compass=?, utility=?, blocks2=?, utility2=? WHERE uuid=?;")) {
+                    ps.setInt(1, preferences.getOrDefault("sword", -1));
+                    ps.setInt(2, preferences.getOrDefault("blocks", -1));
+                    ps.setInt(3, preferences.getOrDefault("pickaxe", -1));
+                    ps.setInt(4, preferences.getOrDefault("axe", -1));
+                    ps.setInt(5, preferences.getOrDefault("bow", -1));
+                    ps.setInt(6, preferences.getOrDefault("shears", -1));
+                    ps.setInt(7, preferences.getOrDefault("potions", -1));
+                    ps.setInt(8, preferences.getOrDefault("compass", -1));
+                    ps.setInt(9, preferences.getOrDefault("utility", -1));
+                    ps.setInt(10, preferences.getOrDefault("blocks2", -1));
+                    ps.setInt(11, preferences.getOrDefault("utility2", -1));
+                    ps.setString(12, uuid.toString());
+                    ps.executeUpdate();
+                }
+            } else {
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "INSERT INTO hotbar_preferences (uuid, sword, blocks, pickaxe, axe, bow, shears, potions, compass, utility, blocks2, utility2) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);")) {
+                    ps.setString(1, uuid.toString());
+                    ps.setInt(2, preferences.getOrDefault("sword", -1));
+                    ps.setInt(3, preferences.getOrDefault("blocks", -1));
+                    ps.setInt(4, preferences.getOrDefault("pickaxe", -1));
+                    ps.setInt(5, preferences.getOrDefault("axe", -1));
+                    ps.setInt(6, preferences.getOrDefault("bow", -1));
+                    ps.setInt(7, preferences.getOrDefault("shears", -1));
+                    ps.setInt(8, preferences.getOrDefault("potions", -1));
+                    ps.setInt(9, preferences.getOrDefault("compass", -1));
+                    ps.setInt(10, preferences.getOrDefault("utility", -1));
+                    ps.setInt(11, preferences.getOrDefault("blocks2", -1));
+                    ps.setInt(12, preferences.getOrDefault("utility2", -1));
+                    ps.executeUpdate();
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public Map<String, Integer> getHotbarPreferences(UUID uuid) {
+        Map<String, Integer> result = new HashMap<>();
+        String[] categories = {"sword", "blocks", "pickaxe", "axe", "bow", "shears", "potions", "compass", "utility", "blocks2", "utility2"};
+        try {
+            checkConnection();
+
+            try (PreparedStatement ps = connection.prepareStatement("SELECT * FROM hotbar_preferences WHERE uuid = ?;")) {
+                ps.setString(1, uuid.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        for (String cat : categories) {
+                            int slot = rs.getInt(cat);
+                            if (slot >= 0 && slot <= 8) {
+                                result.put(cat, slot);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return result;
     }
 
 }

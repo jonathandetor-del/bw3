@@ -156,6 +156,9 @@ public class English extends Language {
         yml.addDefault(Messages.COMMAND_PARTY_CHAT_USAGE, "&9Party &8> &eUsage: &7/chat p &eor &7/chat a");
         yml.addDefault(Messages.COMMAND_PARTY_CHAT_MODE_PARTY, "&9Party &8> &eChat mode set to &aParty&e. All messages go to your party.");
         yml.addDefault(Messages.COMMAND_PARTY_CHAT_MODE_ALL, "&9Party &8> &eChat mode set to &aAll&e. Messages go to public chat.");
+        yml.addDefault(Messages.HOTBAR_MANAGER_TITLE, "&8Hotbar Manager");
+        yml.addDefault(Messages.HOTBAR_MANAGER_BUTTON_NAME, "&5Hotbar Manager");
+        yml.addDefault(Messages.HOTBAR_MANAGER_BUTTON_LORE, Arrays.asList("&7Edit preferred slots for", "&7your items per category.", "&7Click to open!"));
         yml.addDefault(Messages.COMMAND_FORCESTART_NOT_IN_GAME, "§c▪ §7You're not playing!");
         yml.addDefault(Messages.COMMAND_FORCESTART_SUCCESS, "§c▪ §7Countdown shortened!");
         yml.addDefault(Messages.COMMAND_FORCESTART_NO_PERM, "{prefix}&7You can't forcestart the arena.\n§7Please consider donating for VIP features.");
@@ -208,11 +211,11 @@ public class English extends Language {
         yml.addDefault(Messages.GENERATOR_HOLOGRAM_TYPE_EMERALD, "&a&lEmerald");
         yml.addDefault(Messages.GENERATOR_HOLOGRAM_TIMER, "&eSpawns in &c{seconds} &eseconds");
         yml.addDefault(Messages.GENERATOR_UPGRADE_CHAT_ANNOUNCEMENT, "{prefix}{generatorType} Generators &ehave been upgraded to Tier &c{tier}");
-        yml.addDefault(Messages.FORMATTING_CHAT_LOBBY, "{level}{vPrefix}&7{player}{vSuffix}: {message}");
-        yml.addDefault(Messages.FORMATTING_CHAT_WAITING, "{level}{vPrefix}&7{player}{vSuffix}: {message}");
-        yml.addDefault(Messages.FORMATTING_CHAT_SHOUT, "{level}{vPrefix}&6[SHOUT] {team} &7{player}&f{vSuffix}: {message}");
-        yml.addDefault(Messages.FORMATTING_CHAT_TEAM, "{level}{vPrefix}&f{team}&7 {player}{vSuffix} {message}");
-        yml.addDefault(Messages.FORMATTING_CHAT_SPECTATOR, "{level}{vPrefix}&7[SPECTATOR] {player}{vSuffix}: {message}");
+        yml.addDefault(Messages.FORMATTING_CHAT_LOBBY, "{level}{vPrefix} &7{player}: {message}");
+        yml.addDefault(Messages.FORMATTING_CHAT_WAITING, "{level}{vPrefix} &7{player}: {message}");
+        yml.addDefault(Messages.FORMATTING_CHAT_SHOUT, "{level}{vPrefix} &6[SHOUT] {team} &7{player}: {message}");
+        yml.addDefault(Messages.FORMATTING_CHAT_TEAM, "{level}{vPrefix} &f{team}&7 {player}: {message}");
+        yml.addDefault(Messages.FORMATTING_CHAT_SPECTATOR, "{level}{vPrefix} &7[SPECTATOR] {player}: {message}");
         yml.addDefault(Messages.FORMATTING_SCOREBOARD_HEALTH, Arrays.asList("&c❤", "&aHealth"));
 
         yml.addDefault(Messages.FORMATTING_SCOREBOARD_DATE, "dd/MM/yy");

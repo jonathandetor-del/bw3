@@ -22,6 +22,7 @@ package com.andrei1058.bedwars.shop.listeners;
 
 import com.andrei1058.bedwars.api.events.player.PlayerJoinArenaEvent;
 import com.andrei1058.bedwars.api.events.player.PlayerReJoinEvent;
+import com.andrei1058.bedwars.shop.hotbar.PlayerHotbarCache;
 import com.andrei1058.bedwars.shop.quickbuy.PlayerQuickBuyCache;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -39,6 +40,11 @@ public class QuickBuyListener implements Listener {
             cache.destroy();
         }
         new PlayerQuickBuyCache(e.getPlayer());
+        PlayerHotbarCache hbCache = PlayerHotbarCache.getCache(e.getPlayer().getUniqueId());
+        if (hbCache != null) {
+            hbCache.destroy();
+        }
+        new PlayerHotbarCache(e.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -49,6 +55,11 @@ public class QuickBuyListener implements Listener {
             cache.destroy();
         }
         new PlayerQuickBuyCache(e.getPlayer());
+        PlayerHotbarCache hbCache = PlayerHotbarCache.getCache(e.getPlayer().getUniqueId());
+        if (hbCache != null) {
+            hbCache.destroy();
+        }
+        new PlayerHotbarCache(e.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -57,5 +68,9 @@ public class QuickBuyListener implements Listener {
         PlayerQuickBuyCache cache = PlayerQuickBuyCache.getQuickBuyCache(e.getPlayer().getUniqueId());
         if (cache == null) return;
         cache.destroy();
+        PlayerHotbarCache hbCache = PlayerHotbarCache.getCache(e.getPlayer().getUniqueId());
+        if (hbCache != null) {
+            hbCache.destroy();
+        }
     }
 }

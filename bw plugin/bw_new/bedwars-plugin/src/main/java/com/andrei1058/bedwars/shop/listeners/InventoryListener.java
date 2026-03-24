@@ -24,6 +24,7 @@ import com.andrei1058.bedwars.api.arena.IArena;
 import com.andrei1058.bedwars.arena.Arena;
 import com.andrei1058.bedwars.shop.ShopCache;
 import com.andrei1058.bedwars.shop.ShopManager;
+import com.andrei1058.bedwars.shop.hotbar.PlayerHotbarCache;
 import com.andrei1058.bedwars.shop.main.CategoryContent;
 import com.andrei1058.bedwars.shop.main.ShopCategory;
 import com.andrei1058.bedwars.shop.main.ShopIndex;
@@ -70,6 +71,13 @@ public class InventoryListener implements Listener {
         if (ShopIndex.getIndexViewers().contains(p.getUniqueId())) {
             e.setCancelled(true);
 
+            // Hotbar Manager button at slot 53
+            if (e.getSlot() == 53) {
+                p.closeInventory();
+                PlayerHotbarCache.openGUI(p);
+                return;
+            }
+
             for (ShopCategory sc : ShopManager.getShop().getCategoryList()) {
                 if (e.getSlot() == sc.getSlot()) {
                     sc.open(p, ShopManager.getShop(), shopCache);
@@ -89,6 +97,14 @@ public class InventoryListener implements Listener {
             }
         } else if (ShopCategory.getCategoryViewers().contains(p.getUniqueId())) {
             e.setCancelled(true);
+
+            // Hotbar Manager button at slot 53
+            if (e.getSlot() == 53) {
+                p.closeInventory();
+                PlayerHotbarCache.openGUI(p);
+                return;
+            }
+
             for (ShopCategory sc : ShopManager.getShop().getCategoryList()) {
                 if (ShopManager.getShop().getQuickBuyButton().getSlot() == e.getSlot()) {
                     ShopManager.getShop().open(p, cache, false);
@@ -125,6 +141,9 @@ public class InventoryListener implements Listener {
                 cache.setElement(e.getSlot(), cc);
             }
             e.getWhoClicked().closeInventory();
+        } else if (PlayerHotbarCache.hotbarViewers.contains(p.getUniqueId())) {
+            e.setCancelled(true);
+            PlayerHotbarCache.handleClick(p, e.getSlot());
         }
     }
 
@@ -198,6 +217,7 @@ public class InventoryListener implements Listener {
         ShopIndex.indexViewers.remove(e.getPlayer().getUniqueId());
         ShopCategory.categoryViewers.remove(e.getPlayer().getUniqueId());
         QuickBuyAdd.quickBuyAdds.remove(e.getPlayer().getUniqueId());
+        PlayerHotbarCache.hotbarViewers.remove(e.getPlayer().getUniqueId());
     }
 
     /**

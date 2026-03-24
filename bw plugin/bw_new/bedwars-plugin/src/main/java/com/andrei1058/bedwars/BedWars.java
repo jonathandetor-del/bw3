@@ -590,6 +590,7 @@ public class BedWars extends JavaPlugin {
             nms.registerCommand("pchat", new PartyChatCommand("pchat"));
             nms.registerCommand("chat", new ChatModeCommand("chat"));
         }
+        nms.registerCommand("hotbarmanager", new com.andrei1058.bedwars.commands.hotbar.HotbarManagerCommand("hotbarmanager"));
     }
 
     public void onDisable() {

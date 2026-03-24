@@ -466,6 +466,10 @@ public class Messages {
     public static String UPGRADES_TRAP_DEFAULT_SUBTITLE = "upgrades-trap-default-subtitle";
     public static String UPGRADES_TRAP_DEFAULT_MSG = "upgrades-trap-default-msg";
 
+    public static final String HOTBAR_MANAGER_TITLE = "hotbar-manager-title";
+    public static final String HOTBAR_MANAGER_BUTTON_NAME = "hotbar-manager-button-name";
+    public static final String HOTBAR_MANAGER_BUTTON_LORE = "hotbar-manager-button-lore";
+
     public static String SHOP_NEW_PURCHASE = "shop-new-purchase";
     public static String SHOP_UTILITY_NPC_SILVERFISH_NAME = "shop-utility-silverfish";
     public static String SHOP_UTILITY_NPC_IRON_GOLEM_NAME = "shop-utility-iron-golem";
