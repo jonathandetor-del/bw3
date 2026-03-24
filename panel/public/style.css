@@ -146,6 +146,18 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 .player-mini-list div:last-child { border-bottom: none; }
 
 /* ---- Plugins ---- */
+.plugin-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; gap: 10px; flex-wrap: wrap;
+}
+.plugin-search {
+  flex: 1; min-width: 200px; padding: 8px 14px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-input); color: var(--text);
+  font-size: 14px; outline: none;
+}
+.plugin-search:focus { border-color: var(--accent); }
+.plugin-search::placeholder { color: var(--text-muted); }
+.plugin-toolbar-actions { display: flex; gap: 6px; }
 .plugin-list { display: flex; flex-direction: column; gap: 6px; }
 .plugin-item {
   display: flex; align-items: center; justify-content: space-between;

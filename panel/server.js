@@ -219,6 +219,22 @@ app.post('/api/plugins/:name/toggle', auth, async (req, res) => {
   }
 });
 
+app.post('/api/plugins/upload', auth, (req, res) => {
+  const name = req.query.name;
+  if (!name || !/\.jar$/i.test(name) || name.includes('..') || name.includes('/') || name.includes('\\')) {
+    return res.status(400).json({ error: 'Invalid plugin filename (must be .jar)' });
+  }
+  const pluginsDir = path.join(DATA_DIR, 'plugins');
+  if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir, { recursive: true });
+  const fp = path.join(pluginsDir, name);
+  try {
+    fs.writeFileSync(fp, req.body);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---- Worlds ----
 
 app.get('/api/worlds', auth, (req, res) => {

@@ -308,7 +308,41 @@
 
   // --- Plugins ---
   async function renderPlugins(c) {
-    c.innerHTML = '<div class="page-header"><h2>Plugins</h2></div><div id="plugin-container" class="plugin-list"><div class="empty-state">Loading...</div></div>';
+    c.innerHTML = `
+      <div class="page-header"><h2>Plugins</h2></div>
+      <div class="plugin-toolbar">
+        <input type="text" id="plugin-search" class="plugin-search" placeholder="Search plugins...">
+        <div class="plugin-toolbar-actions">
+          <input type="file" id="plugin-upload-input" accept=".jar" multiple style="display:none">
+          <button class="btn btn-green" id="plugin-upload-btn">&#8593; Upload Plugin</button>
+        </div>
+      </div>
+      <div id="plugin-container" class="plugin-list"><div class="empty-state">Loading...</div></div>`;
+
+    const searchInput = $('#plugin-search');
+    const uploadInput = $('#plugin-upload-input');
+    const uploadBtn = $('#plugin-upload-btn');
+
+    uploadBtn.addEventListener('click', () => uploadInput.click());
+    uploadInput.addEventListener('change', async () => {
+      const files = uploadInput.files;
+      if (!files.length) return;
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = 'Uploading...';
+      for (const file of files) {
+        try {
+          const buf = await file.arrayBuffer();
+          await fetch(`/api/plugins/upload?name=${encodeURIComponent(file.name)}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: buf
+          });
+        } catch (e) { alert('Upload failed: ' + e.message); }
+      }
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = '\u2191 Upload Plugin';
+      uploadInput.value = '';
+      renderPlugins(c);
+    });
+
     try {
       const data = await api('GET', '/api/plugins');
       const el = $('#plugin-container');
@@ -316,21 +350,33 @@
         el.innerHTML = '<div class="empty-state">No plugins found</div>';
         return;
       }
-      el.innerHTML = data.plugins.map((p, i) => `
-        <div class="plugin-item">
-          <span class="plugin-name">${escapeHtml(p.name)}</span>
-          <label class="toggle">
-            <input type="checkbox" ${p.enabled ? 'checked' : ''} data-plugin="${escapeHtml(p.name)}" data-idx="${i}">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>`).join('');
-      $$('.toggle input', el).forEach(inp => {
-        inp.addEventListener('change', async () => {
-          const name = inp.dataset.plugin;
-          const enable = inp.checked;
-          await api('POST', `/api/plugins/${encodeURIComponent(name)}/toggle`, { enable });
+      let allPlugins = data.plugins;
+
+      function renderList(filter) {
+        const filtered = filter ? allPlugins.filter(p => p.name.toLowerCase().includes(filter.toLowerCase())) : allPlugins;
+        if (filtered.length === 0) {
+          el.innerHTML = '<div class="empty-state">No matching plugins</div>';
+          return;
+        }
+        el.innerHTML = filtered.map((p) => `
+          <div class="plugin-item">
+            <span class="plugin-name">${escapeHtml(p.name)}</span>
+            <label class="toggle">
+              <input type="checkbox" ${p.enabled ? 'checked' : ''} data-plugin="${escapeHtml(p.name)}">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>`).join('');
+        $$('.toggle input', el).forEach(inp => {
+          inp.addEventListener('change', async () => {
+            const name = inp.dataset.plugin;
+            const enable = inp.checked;
+            await api('POST', `/api/plugins/${encodeURIComponent(name)}/toggle`, { enable });
+          });
         });
-      });
+      }
+
+      renderList('');
+      searchInput.addEventListener('input', () => renderList(searchInput.value.trim()));
     } catch (e) {
       $('#plugin-container').innerHTML = `<div class="empty-state">Error: ${escapeHtml(e.message)}</div>`;
     }
