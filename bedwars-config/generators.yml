@@ -5,11 +5,11 @@ Default:
   iron:
     delay: 0.8
     amount: 2
-    spawn-limit: 192
+    spawn-limit: 48
   gold:
     delay: 3.5
     amount: 1
-    spawn-limit: 32
+    spawn-limit: 8
   diamond:
     tierI:
       delay: 30
@@ -18,12 +18,12 @@ Default:
     tierII:
       delay: 20
       amount: 1
-      spawn-limit: 6
+      spawn-limit: 4
       start: 360
     tierIII:
       delay: 15
       amount: 1
-      spawn-limit: 8
+      spawn-limit: 4
       start: 720
   emerald:
     tierI:
