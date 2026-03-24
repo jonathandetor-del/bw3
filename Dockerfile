@@ -30,8 +30,7 @@ RUN ARCH="$(uname -m)" && \
 
 # Install nginx (reverse proxy for file manager + web console on single port)
 RUN apk add --no-cache nginx && \
-    mkdir -p /run/nginx /var/lib/nginx/tmp && \
-    chown -R minecraft:minecraft /run/nginx /var/lib/nginx /var/log/nginx
+    mkdir -p /run/nginx /var/lib/nginx/tmp
 
 # Install ttyd (web-based terminal)
 ARG TTYD_VERSION=1.7.7
@@ -56,7 +55,8 @@ RUN apk add --no-cache --virtual .build-deps gcc musl-dev && \
 # Create server directory and non-root user for security
 RUN adduser -D -h /server -s /bin/bash minecraft && \
     mkdir -p /server/plugins /server/worlds && \
-    chown -R minecraft:minecraft /server
+    chown -R minecraft:minecraft /server && \
+    chown -R minecraft:minecraft /run/nginx /var/lib/nginx /var/log/nginx
 
 WORKDIR /server
 
