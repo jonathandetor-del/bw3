@@ -13,7 +13,7 @@ ENV MINECRAFT_PORT=25565 \
     TZ=Asia/Singapore
 
 # FlamePaper is a performance-focused 1.8.8 Paper fork.
-RUN apk add --no-cache bash curl tar ca-certificates unzip libarchive-tools
+RUN apk add --no-cache bash curl tar ca-certificates unzip libarchive-tools nodejs npm
 
 # Install File Browser (web file manager)
 ARG FILEBROWSER_VERSION=v2.31.2
@@ -106,6 +106,10 @@ COPY --chown=minecraft:minecraft ops.json /server/ops.json
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY --chown=minecraft:minecraft console.sh /server/console.sh
 RUN chmod +x /server/console.sh
+
+# Copy and build server management panel
+COPY --chown=minecraft:minecraft panel/ /server/panel/
+RUN cd /server/panel && npm install --production && chown -R minecraft:minecraft /server/panel
 
 RUN chmod +x /server/start.sh
 

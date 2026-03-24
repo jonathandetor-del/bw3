@@ -35,7 +35,7 @@ MEMORY = "8G"
 TZ = "Asia/Singapore"
 
 # File Manager Configuration (FileBrowser)
-FILE_MANAGER_PORT = "8080"
+FILE_MANAGER_PORT = "8081"
 FILE_MANAGER_USERNAME = "admin"
 FILE_MANAGER_PASSWORD = "adminadmin123"
 FILE_MANAGER_DB = "/data/.filebrowser.db"

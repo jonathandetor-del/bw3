@@ -445,6 +445,7 @@ if command -v filebrowser >/dev/null 2>&1; then
             -a 0.0.0.0 \
             -p "$FILE_MANAGER_PORT" \
             -r /data \
+            --baseurl /files \
             -d "$FILE_MANAGER_DB" >/dev/null 2>&1 || true
         filebrowser users add "$FILE_MANAGER_USERNAME" "$FILE_MANAGER_PASSWORD" --perm.admin -d "$FILE_MANAGER_DB" >/dev/null 2>&1 || true
         echo "File manager DB initialized with default admin user"
@@ -453,6 +454,7 @@ if command -v filebrowser >/dev/null 2>&1; then
         -a 0.0.0.0 \
         -p "$FILE_MANAGER_PORT" \
         -r /data \
+        --baseurl /files \
         -d "$FILE_MANAGER_DB" >/tmp/filebrowser.log 2>&1 &
     echo "File manager started on port ${FILE_MANAGER_PORT} (user: ${FILE_MANAGER_USERNAME})"
 else
@@ -478,6 +480,13 @@ if command -v nginx >/dev/null 2>&1; then
         echo "WARNING: nginx failed to start — see /tmp/nginx-startup.log"
         cat /tmp/nginx-startup.log 2>/dev/null
     fi
+fi
+
+# Server management panel (Node.js)
+if command -v node >/dev/null 2>&1 && [ -f /server/panel/server.js ]; then
+    cd /server/panel && node server.js >/tmp/panel.log 2>&1 &
+    echo "Server panel started on port 3000"
+    cd "$SERVER_DIR"
 fi
 
 # Railway TCP proxy forwards external traffic to port 25565.

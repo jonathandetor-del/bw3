@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BedWars Server Panel</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-box">
+      <h1>BedWars Panel</h1>
+      <p class="login-sub">Server Management</p>
+      <form id="login-form">
+        <input type="text" id="login-user" placeholder="Username" autocomplete="username" required>
+        <input type="password" id="login-pass" placeholder="Password" autocomplete="current-password" required>
+        <button type="submit">Sign In</button>
+        <p id="login-error" class="error-msg"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Panel -->
+  <div id="panel" class="panel" style="display:none">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="server-name">BedWars Server</span>
+        <span id="server-status" class="status-badge offline">Offline</span>
+      </div>
+      <div class="topbar-right">
+        <button id="btn-restart" class="btn btn-warn" title="Restart">&#x21BB; Restart</button>
+        <button id="btn-stop" class="btn btn-danger" title="Stop">&#x25A0; Stop</button>
+        <button id="btn-logout" class="btn btn-muted" title="Logout">Logout</button>
+      </div>
+    </header>
+
+    <div class="panel-body">
+      <!-- Sidebar -->
+      <nav class="sidebar">
+        <a href="#console" class="nav-item active" data-page="console">
+          <span class="nav-icon">&#x2630;</span> Console
+        </a>
+        <a href="#players" class="nav-item" data-page="players">
+          <span class="nav-icon">&#x263A;</span> Players
+        </a>
+        <a href="#plugins" class="nav-item" data-page="plugins">
+          <span class="nav-icon">&#x2699;</span> Plugins
+        </a>
+        <a href="#worlds" class="nav-item" data-page="worlds">
+          <span class="nav-icon">&#x2609;</span> Worlds
+        </a>
+        <a href="#settings" class="nav-item" data-page="settings">
+          <span class="nav-icon">&#x2638;</span> Settings
+        </a>
+        <a href="#files" class="nav-item" data-page="files">
+          <span class="nav-icon">&#x1F4C1;</span> Files
+        </a>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="content" id="content">
+        <!-- Dynamically filled by app.js -->
+      </main>
+
+      <!-- Info Sidebar -->
+      <aside class="info-sidebar" id="info-sidebar">
+        <div class="info-card">
+          <h3>Server Info</h3>
+          <div class="info-row"><span>Status</span><span id="info-status" class="text-green">--</span></div>
+          <div class="info-row"><span>TPS</span><span id="info-tps">--</span></div>
+          <div class="info-row"><span>Players</span><span id="info-players">--</span></div>
+          <div class="info-row"><span>RAM</span><span id="info-ram">--</span></div>
+          <div class="info-row"><span>CPU Load</span><span id="info-cpu">--</span></div>
+          <div class="info-row"><span>Uptime</span><span id="info-uptime">--</span></div>
+          <div class="info-row"><span>Data Size</span><span id="info-world">--</span></div>
+        </div>
+        <div class="info-card">
+          <h3>Quick Players</h3>
+          <div id="info-player-list" class="player-mini-list">
+            <span class="text-muted">No players online</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
