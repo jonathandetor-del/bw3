@@ -286,10 +286,16 @@
             <span class="player-name">${escapeHtml(name)}</span>
           </div>
           <div class="player-actions">
-            <button class="btn btn-sm btn-warn" onclick="window._kickPlayer('${escapeHtml(name)}')">Kick</button>
-            <button class="btn btn-sm btn-danger" onclick="window._banPlayer('${escapeHtml(name)}')">Ban</button>
+            <button class="btn btn-sm btn-warn player-kick" data-name="${escapeHtml(name)}">Kick</button>
+            <button class="btn btn-sm btn-danger player-ban" data-name="${escapeHtml(name)}">Ban</button>
           </div>
         </div>`).join('');
+      el.querySelectorAll('.player-kick').forEach(btn => {
+        btn.addEventListener('click', () => window._kickPlayer(btn.dataset.name));
+      });
+      el.querySelectorAll('.player-ban').forEach(btn => {
+        btn.addEventListener('click', () => window._banPlayer(btn.dataset.name));
+      });
     } catch (e) {
       $('#player-container').innerHTML = `<div class="empty-state">Error: ${escapeHtml(e.message)}</div>`;
     }
@@ -340,6 +346,7 @@
       uploadBtn.disabled = false;
       uploadBtn.textContent = '\u2191 Upload Plugin';
       uploadInput.value = '';
+      alert('Plugin(s) uploaded and auto-loaded!');
       renderPlugins(c);
     });
 
@@ -552,6 +559,7 @@
           <td class="fm-cell-actions">
             ${!e.isDir ? `<button class="fm-act-btn" data-action="download" title="Download">&#x2B07;</button>` : ''}
             ${editable ? `<button class="fm-act-btn" data-action="edit" title="Edit">&#x270E;</button>` : ''}
+            <button class="fm-act-btn" data-action="rename" title="Rename">&#x270D;</button>
             ${isArchive(e.name) ? `<button class="fm-act-btn fm-act-extract" data-action="extract" title="Extract">&#x1F4E6;</button>` : ''}
             <button class="fm-act-btn fm-act-del" data-action="delete" title="Delete">&#x1F5D1;</button>
           </td>
@@ -576,6 +584,7 @@
             else if (action === 'download') downloadFile(fp);
             else if (action === 'edit') editFile(fp);
             else if (action === 'extract') extractFile(fp);
+            else if (action === 'rename') renameFile(fp, row.dataset.name);
           });
         });
       });
@@ -598,6 +607,17 @@
     if (/\.(yml|yaml|json|properties|toml|xml|cfg|conf)$/i.test(name)) return '<span style="color:var(--green)">&#x1F4C4;</span>';
     if (/\.(txt|md|log)$/i.test(name)) return '&#x1F4C3;';
     return '&#x1F4C4;';
+  }
+
+  async function renameFile(fp, oldName) {
+    const newName = prompt('Rename to:', oldName);
+    if (!newName || newName === oldName) return;
+    const dir = fp.substring(0, fp.length - oldName.length);
+    try {
+      const res = await api('POST', '/api/files/rename', { oldPath: fp, newPath: dir + newName });
+      if (res.ok) loadDir();
+      else alert('Error: ' + (res.error || 'Unknown'));
+    } catch (e) { alert('Error: ' + e.message); }
   }
 
   async function extractFile(fp) {

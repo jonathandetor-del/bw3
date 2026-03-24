@@ -158,7 +158,7 @@ app.get('/api/players', auth, async (req, res) => {
     const resp = await r.command('list');
     const parts = resp.split(':');
     const names = parts.length > 1
-      ? parts.slice(1).join(':').trim().split(',').map(n => n.trim()).filter(Boolean)
+      ? parts.slice(1).join(':').trim().split(',').map(n => n.trim().replace(/\u00A7[0-9a-fk-or]/gi, '')).filter(Boolean)
       : [];
     res.json({ players: names });
   } catch (e) {
@@ -219,7 +219,7 @@ app.post('/api/plugins/:name/toggle', auth, async (req, res) => {
   }
 });
 
-app.post('/api/plugins/upload', auth, (req, res) => {
+app.post('/api/plugins/upload', auth, async (req, res) => {
   const name = req.query.name;
   if (!name || !/\.jar$/i.test(name) || name.includes('..') || name.includes('/') || name.includes('\\')) {
     return res.status(400).json({ error: 'Invalid plugin filename (must be .jar)' });
@@ -229,7 +229,14 @@ app.post('/api/plugins/upload', auth, (req, res) => {
   const fp = path.join(pluginsDir, name);
   try {
     fs.writeFileSync(fp, req.body);
-    res.json({ ok: true });
+    // Auto-load the plugin via PlugManX
+    const pluginName = name.replace(/\.jar$/i, '');
+    let loadResult = '';
+    try {
+      const r = await getRcon();
+      loadResult = await r.command(`plugman load ${pluginName}`);
+    } catch (_) { loadResult = 'RCON unavailable — plugin saved but not loaded'; }
+    res.json({ ok: true, loaded: loadResult });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -435,6 +442,20 @@ app.get('/api/files/download', auth, (req, res) => {
   if (!fp) return res.status(400).json({ error: 'Invalid path' });
   try {
     res.download(fp);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/files/rename', auth, (req, res) => {
+  const oldPath = safePath(req.body.oldPath);
+  const newPath = safePath(req.body.newPath);
+  if (!oldPath || !newPath || oldPath === DATA_DIR || newPath === DATA_DIR) {
+    return res.status(400).json({ error: 'Invalid path' });
+  }
+  try {
+    fs.renameSync(oldPath, newPath);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
