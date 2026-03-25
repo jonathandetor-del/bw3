@@ -31,7 +31,7 @@ protocol = "TCP"
 [env]
 # Minecraft Server Configuration
 MINECRAFT_PORT = "25565"
-MEMORY = "8G"
+MEMORY = "16G"
 TZ = "Asia/Singapore"
 
 # File Manager Configuration (FileBrowser)
