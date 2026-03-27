@@ -3,3 +3,4 @@ weight: 70
 permissions:
 - "prefix.70.&3&l[DEV]&r &f"
 - "weight.70"
+- "bw.party.private"

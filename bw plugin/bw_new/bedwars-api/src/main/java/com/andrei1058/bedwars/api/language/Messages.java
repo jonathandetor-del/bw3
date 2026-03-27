@@ -123,6 +123,9 @@ public class Messages {
     public static String COMMAND_PARTY_MUTED_CANNOT_CHAT = "cmd-party-muted-cannot-chat";
     public static String COMMAND_PARTY_PRIVATE_ENABLED = "cmd-party-private-enabled";
     public static String COMMAND_PARTY_PRIVATE_DISABLED = "cmd-party-private-disabled";
+    public static String COMMAND_PARTY_PRIVATE_TOGGLE = "cmd-party-private-toggle";
+    public static String COMMAND_PARTY_PRIVATE_NO_PERM = "cmd-party-private-no-perm";
+    public static String ARENA_JOIN_DENIED_PRIVATE_GAME = "arena-join-denied-private-game";
     public static String COMMAND_PARTY_POLL_USAGE = "cmd-party-poll-usage";
     public static String COMMAND_PARTY_POLL_QUESTION = "cmd-party-poll-question";
     public static String COMMAND_PARTY_POLL_ANSWER = "cmd-party-poll-answer";
@@ -131,6 +134,15 @@ public class Messages {
     public static String COMMAND_PARTY_SETTING_ALLINVITE_OFF = "cmd-party-setting-allinvite-off";
     public static String COMMAND_PARTY_PROMOTE_TO_MOD = "cmd-party-promote-to-mod";
     public static String COMMAND_PARTY_PROMOTED_TO_MOD = "cmd-party-promoted-to-mod";
+    public static String COMMAND_PARTY_OPEN_CREATED = "cmd-party-open-created";
+    public static String COMMAND_PARTY_OPEN_CAPPED = "cmd-party-open-capped";
+    public static String COMMAND_PARTY_CLOSED = "cmd-party-closed";
+    public static String COMMAND_PARTY_JOIN_SUCCESS = "cmd-party-join-public";
+    public static String COMMAND_PARTY_JOIN_DENIED_NOT_OPEN = "cmd-party-join-not-open";
+    public static String COMMAND_PARTY_JOIN_DENIED_FULL = "cmd-party-join-full";
+    public static String COMMAND_PARTY_JOIN_USAGE = "cmd-party-join-usage";
+    public static String COMMAND_PARTY_OPEN_ALREADY = "cmd-party-open-already";
+    public static String COMMAND_PARTY_OPEN_SELECT_SIZE = "cmd-party-open-select-size";
     public static String COMMAND_NOT_FOUND_OR_INSUFF_PERMS = "cmd-not-found";
     public static String COMMAND_FORCESTART_NOT_IN_GAME = "cmd-start-no-game";
     public static String COMMAND_FORCESTART_SUCCESS = "cmd-start";

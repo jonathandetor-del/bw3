@@ -27,15 +27,27 @@ import com.andrei1058.bedwars.api.language.Messages;
 import com.andrei1058.bedwars.arena.Arena;
 import com.andrei1058.bedwars.sidebar.SidebarService;
 import com.andrei1058.bedwars.support.party.Internal;
+import io.netty.buffer.Unpooled;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
+import net.minecraft.server.v1_8_R3.EntityPlayer;
+import net.minecraft.server.v1_8_R3.NBTTagCompound;
+import net.minecraft.server.v1_8_R3.NBTTagList;
+import net.minecraft.server.v1_8_R3.NBTTagString;
+import net.minecraft.server.v1_8_R3.PacketDataSerializer;
+import net.minecraft.server.v1_8_R3.PacketPlayOutCustomPayload;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.command.defaults.BukkitCommand;
+import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BookMeta;
 
 import java.util.*;
 
@@ -49,8 +61,9 @@ public class PartyCommand extends BukkitCommand {
         super(name);
     }
 
-    // owner UUID → target UUID invite tracking
-    private static final HashMap<UUID, UUID> partySessionRequest = new HashMap<>();
+    // inviter UUID → (target UUID → expiry timestamp) invite tracking
+    private static final Map<UUID, Map<UUID, Long>> partyInvites = new HashMap<>();
+    private static final long INVITE_EXPIRY_MS = 120_000L; // 120 seconds
     private static final HashMap<UUID, Long> warpCooldowns = new HashMap<>();
     private static final long WARP_COOLDOWN_MS = 3000L;
 
@@ -111,13 +124,19 @@ public class PartyCommand extends BukkitCommand {
                 handleMute(p);
                 break;
             case "private":
-                handlePrivate(p);
+                handlePrivateGame(p);
                 break;
             case "poll":
                 handlePoll(p, args);
                 break;
             case "setting":
                 handleSetting(p, args);
+                break;
+            case "open":
+                handleOpen(p, args);
+                break;
+            case "join":
+                handleJoin(p, args);
                 break;
             case "chat":
                 handleChat(p, args);
@@ -162,7 +181,9 @@ public class PartyCommand extends BukkitCommand {
                 TextComponent tc = new TextComponent(getMsg(p, Messages.COMMAND_PARTY_INVITE_SENT_TARGET_RECEIVE_MSG).replace("{player}", p.getName()));
                 tc.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/party accept " + p.getName()));
                 target.spigot().sendMessage(tc);
-                partySessionRequest.put(p.getUniqueId(), target.getUniqueId());
+                target.sendMessage("\u00A79Party \u00A78> \u00A7eYou have 120 seconds to accept.");
+                partyInvites.computeIfAbsent(p.getUniqueId(), k -> new HashMap<>())
+                        .put(target.getUniqueId(), System.currentTimeMillis() + INVITE_EXPIRY_MS);
             } else {
                 p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_INVITE_DENIED_PLAYER_OFFLINE).replace("{player}", targetName));
             }
@@ -172,31 +193,79 @@ public class PartyCommand extends BukkitCommand {
     // ========== ACCEPT ==========
     private void handleAccept(Player p, String[] args) {
         if (args.length < 2) return;
-        if (getParty().hasParty(p)) {
-            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_ACCEPT_DENIED_ALREADY_IN_PARTY));
-            return;
-        }
         Player inviter = Bukkit.getPlayer(args[1]);
         if (inviter == null || !inviter.isOnline()) {
             p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_INVITE_DENIED_PLAYER_OFFLINE).replace("{player}", args[1]));
             return;
         }
-        if (!partySessionRequest.containsKey(inviter.getUniqueId())) {
+
+        long now = System.currentTimeMillis();
+
+        // Direct lookup: inviter has a pending invite for this player
+        UUID actualInviterUUID = null;
+        Map<UUID, Long> inviterTargets = partyInvites.get(inviter.getUniqueId());
+        if (inviterTargets != null) {
+            Long expiry = inviterTargets.get(p.getUniqueId());
+            if (expiry != null) {
+                if (expiry > now) {
+                    actualInviterUUID = inviter.getUniqueId();
+                } else {
+                    inviterTargets.remove(p.getUniqueId()); // expired
+                }
+            }
+        }
+
+        // Fallback: the player typed the party owner's name but a member sent the invite.
+        if (actualInviterUUID == null && getParty().hasParty(inviter)) {
+            for (Map.Entry<UUID, Map<UUID, Long>> entry : partyInvites.entrySet()) {
+                Long expiry = entry.getValue().get(p.getUniqueId());
+                if (expiry != null && expiry > now) {
+                    Player candidate = Bukkit.getPlayer(entry.getKey());
+                    if (candidate != null && getParty().hasParty(candidate)) {
+                        Player candidateOwner = getParty().getOwner(candidate);
+                        if (candidateOwner != null && candidateOwner.equals(inviter)) {
+                            actualInviterUUID = entry.getKey();
+                            break;
+                        }
+                    }
+                } else if (expiry != null) {
+                    entry.getValue().remove(p.getUniqueId()); // expired, clean up
+                }
+            }
+        }
+
+        if (actualInviterUUID == null) {
             p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_ACCEPT_DENIED_NO_INVITE));
             return;
         }
-        if (partySessionRequest.get(inviter.getUniqueId()).equals(p.getUniqueId())) {
-            partySessionRequest.remove(inviter.getUniqueId());
-            if (getParty().hasParty(inviter)) {
-                getParty().addMember(inviter, p);
-            } else {
-                getParty().createParty(inviter, p);
-            }
-            for (Player on : getParty().getMembers(inviter)) {
+
+        // Remove the accepted invite
+        Map<UUID, Long> targets = partyInvites.get(actualInviterUUID);
+        if (targets != null) {
+            targets.remove(p.getUniqueId());
+            if (targets.isEmpty()) partyInvites.remove(actualInviterUUID);
+        }
+
+        // Auto-leave current party before joining (Hypixel behavior)
+        if (getParty().hasParty(p)) {
+            getParty().removeFromParty(p);
+        }
+
+        Player realInviter = Bukkit.getPlayer(actualInviterUUID);
+        if (realInviter == null) realInviter = inviter;
+
+        if (getParty().hasParty(realInviter)) {
+            Player owner = getParty().getOwner(realInviter);
+            if (owner == null) owner = realInviter;
+            getParty().addMember(owner, p);
+            for (Player on : getParty().getMembers(owner)) {
                 on.sendMessage(getMsg(p, Messages.COMMAND_PARTY_ACCEPT_SUCCESS).replace("{playername}", p.getName()).replace("{player}", p.getDisplayName()));
             }
         } else {
-            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_ACCEPT_DENIED_NO_INVITE));
+            getParty().createParty(realInviter, p);
+            for (Player on : getParty().getMembers(realInviter)) {
+                on.sendMessage(getMsg(p, Messages.COMMAND_PARTY_ACCEPT_SUCCESS).replace("{playername}", p.getName()).replace("{player}", p.getDisplayName()));
+            }
         }
     }
 
@@ -529,6 +598,7 @@ public class PartyCommand extends BukkitCommand {
                 return;
             }
         }
+        int warped = 0;
         for (Player mem : members) {
             if (mem == p) continue;
             IArena memArena = Arena.getArenaByPlayer(mem);
@@ -540,23 +610,31 @@ public class PartyCommand extends BukkitCommand {
                     memArena.removeSpectator(mem, false);
                 }
             }
+            boolean added;
             if (isWaiting) {
-                ownerArena.addPlayer(mem, true);
+                added = ownerArena.addPlayer(mem, true);
             } else {
-                ownerArena.addSpectator(mem, false, null);
+                added = ownerArena.addSpectator(mem, false, null);
             }
-            // Delayed scoreboard refresh to ensure arena sidebar takes effect
-            final Player target = mem;
-            Bukkit.getScheduler().runTaskLater(BedWars.plugin, () -> {
-                if (target.isOnline() && Arena.getArenaByPlayer(target) == ownerArena) {
-                    SidebarService.getInstance().giveSidebar(target, ownerArena, false);
-                }
-            }, 5L);
-            mem.sendMessage(getMsg(mem, Messages.COMMAND_PARTY_WARP_WARPED).replace("{owner}", p.getName()));
-            mem.playSound(mem.getLocation(), warpSound, 1f, 1f);
+            if (added) {
+                warped++;
+                // Delayed scoreboard refresh to ensure arena sidebar takes effect
+                final Player target = mem;
+                Bukkit.getScheduler().runTaskLater(BedWars.plugin, () -> {
+                    if (target.isOnline() && Arena.getArenaByPlayer(target) == ownerArena) {
+                        SidebarService.getInstance().giveSidebar(target, ownerArena, false);
+                    }
+                }, 5L);
+                mem.sendMessage(getMsg(mem, Messages.COMMAND_PARTY_WARP_WARPED).replace("{owner}", p.getName()));
+                mem.playSound(mem.getLocation(), warpSound, 1f, 1f);
+            }
         }
-        p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_WARP_SUCCESS));
-        p.playSound(p.getLocation(), warpSound, 1f, 1f);
+        if (warped > 0) {
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_WARP_SUCCESS));
+            p.playSound(p.getLocation(), warpSound, 1f, 1f);
+        } else {
+            p.sendMessage("\u00A79Party \u00A78> \u00A7cNo party members could be warped.");
+        }
     }
 
     // ========== MUTE ==========
@@ -580,11 +658,14 @@ public class PartyCommand extends BukkitCommand {
         }
     }
 
-    // ========== PRIVATE ==========
-    private void handlePrivate(Player p) {
-        if (!getParty().hasParty(p)) {
-            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_GENERAL_DENIED_NOT_IN_PARTY));
+    // ========== PRIVATE GAME (MVP+ only) ==========
+    private void handlePrivateGame(Player p) {
+        if (!p.hasPermission("bw.party.private")) {
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_PRIVATE_NO_PERM));
             return;
+        }
+        if (!getParty().hasParty(p)) {
+            getParty().createParty(p);
         }
         if (!getParty().isOwner(p)) {
             p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_INSUFFICIENT_PERMISSIONS));
@@ -593,9 +674,14 @@ public class PartyCommand extends BukkitCommand {
         Internal.PartyData pd = Internal.getPartyDataByPlayer(p);
         if (pd == null) return;
         pd.setPrivateGame(!pd.isPrivateGame());
-        String msg = pd.isPrivateGame() ? getMsg(p, Messages.COMMAND_PARTY_PRIVATE_ENABLED) : getMsg(p, Messages.COMMAND_PARTY_PRIVATE_DISABLED);
+        String status = pd.isPrivateGame() ? "\u00A7aenabled" : "\u00A7cdisabled";
+        String prefix = BedWars.getChatSupport().getPrefix(p);
+        String toggleMsg = getMsg(p, Messages.COMMAND_PARTY_PRIVATE_TOGGLE)
+                .replace("{prefix}", prefix)
+                .replace("{player}", p.getName())
+                .replace("{status}", status);
         for (Player mem : getParty().getMembers(p)) {
-            mem.sendMessage(msg);
+            mem.sendMessage(toggleMsg);
         }
     }
 
@@ -698,6 +784,19 @@ public class PartyCommand extends BukkitCommand {
             for (Player mem : getParty().getMembers(p)) {
                 mem.sendMessage(msg);
             }
+        } else if (args[1].equalsIgnoreCase("public")) {
+            handleOpen(p, args);
+        } else if (args[1].equalsIgnoreCase("private")) {
+            if (pd.isOpenParty()) {
+                pd.setOpenParty(false);
+                pd.setMaxSize(0);
+                String msg = getMsg(p, Messages.COMMAND_PARTY_CLOSED);
+                for (Player mem : getParty().getMembers(p)) {
+                    mem.sendMessage(msg);
+                }
+            } else {
+                p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_CLOSED));
+            }
         } else {
             for (String line : getList(p, Messages.COMMAND_PARTY_SETTING_HELP)) {
                 p.sendMessage(line);
@@ -771,6 +870,163 @@ public class PartyCommand extends BukkitCommand {
                 }
             }
         } catch (Exception ignored) {
+        }
+    }
+
+    // ========== OPEN (public party) ==========
+    private void handleOpen(Player p, String[] args) {
+        // /party open <size> — set the party as open with a max size (called from book click or direct)
+        // Check for size argument: could be args[1] (from /party open 12) or args[2] (from /party setting public 12)
+        String sizeArg = null;
+        if (args.length >= 3 && args[0].equalsIgnoreCase("setting")) {
+            sizeArg = args[2];
+        } else if (args.length >= 2 && args[0].equalsIgnoreCase("open")) {
+            sizeArg = args[1];
+        }
+
+        if (sizeArg != null) {
+            int maxSize;
+            try {
+                maxSize = Integer.parseInt(sizeArg);
+                if (maxSize < 2 || maxSize > 100) {
+                    p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_OPEN_SELECT_SIZE));
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_OPEN_SELECT_SIZE));
+                return;
+            }
+
+            if (!getParty().hasParty(p)) {
+                getParty().createParty(p);
+            }
+            if (!getParty().isOwner(p)) {
+                p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_INSUFFICIENT_PERMISSIONS));
+                return;
+            }
+
+            Internal.PartyData pd = Internal.getPartyDataByPlayer(p);
+            if (pd == null) return;
+
+            pd.setOpenParty(true);
+            pd.setMaxSize(maxSize);
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_OPEN_CREATED).replace("{player}", p.getName()));
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_OPEN_CAPPED).replace("{max}", String.valueOf(maxSize)));
+            return;
+        }
+
+        // No size argument: show book GUI for size selection
+        if (!getParty().hasParty(p)) {
+            getParty().createParty(p);
+        }
+        if (!getParty().isOwner(p)) {
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_INSUFFICIENT_PERMISSIONS));
+            return;
+        }
+
+        openPartySizeBook(p);
+    }
+
+    // ========== JOIN (public party) ==========
+    private void handleJoin(Player p, String[] args) {
+        if (args.length < 2) {
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_JOIN_USAGE));
+            return;
+        }
+
+        Player target = Bukkit.getPlayer(args[1]);
+        if (target == null) {
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_INVITE_DENIED_PLAYER_OFFLINE).replace("{player}", args[1]));
+            return;
+        }
+
+        if (target.equals(p)) {
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_INVITE_DENIED_CANNOT_INVITE_YOURSELF));
+            return;
+        }
+
+        if (!getParty().hasParty(target)) {
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_JOIN_DENIED_NOT_OPEN));
+            return;
+        }
+
+        Internal.PartyData pd = Internal.getPartyDataByPlayer(target);
+        if (pd == null || !pd.isOpenParty()) {
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_JOIN_DENIED_NOT_OPEN));
+            return;
+        }
+
+        int currentSize = getParty().getMembers(pd.getOwner()).size();
+        if (pd.getMaxSize() > 0 && currentSize >= pd.getMaxSize()) {
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_JOIN_DENIED_FULL));
+            return;
+        }
+
+        // Auto-leave current party if in one
+        if (getParty().hasParty(p)) {
+            if (getParty().isOwner(p)) {
+                getParty().disband(p);
+            } else {
+                getParty().removeFromParty(p);
+            }
+        }
+
+        getParty().addMember(pd.getOwner(), p);
+        String msg = getMsg(p, Messages.COMMAND_PARTY_JOIN_SUCCESS).replace("{player}", p.getName());
+        for (Player mem : getParty().getMembers(pd.getOwner())) {
+            mem.sendMessage(msg);
+        }
+    }
+
+    // ========== BOOK GUI for party size selection ==========
+    private void openPartySizeBook(Player p) {
+        try {
+            ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
+            BookMeta meta = (BookMeta) book.getItemMeta();
+            meta.setTitle("Party");
+            meta.setAuthor("Server");
+            book.setItemMeta(meta);
+
+            net.minecraft.server.v1_8_R3.ItemStack nmsBook = CraftItemStack.asNMSCopy(book);
+            NBTTagCompound tag = nmsBook.getTag();
+            if (tag == null) tag = new NBTTagCompound();
+
+            NBTTagList pages = new NBTTagList();
+            String pageJson = "{\"text\":\"Select the maximum number\\nof players for your party:\\n\\n\"," +
+                    "\"extra\":[" +
+                    "{\"text\":\"> 12\\n\\n\",\"color\":\"dark_green\",\"bold\":true,\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/party open 12\"}}," +
+                    "{\"text\":\"> 16\\n\\n\",\"color\":\"dark_green\",\"bold\":true,\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/party open 16\"}}," +
+                    "{\"text\":\"> 24\\n\\n\",\"color\":\"dark_green\",\"bold\":true,\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/party open 24\"}}," +
+                    "{\"text\":\"> Custom\",\"color\":\"dark_green\",\"bold\":true,\"clickEvent\":{\"action\":\"suggest_command\",\"value\":\"/party open \"}}" +
+                    "]}";
+            pages.add(new NBTTagString(pageJson));
+            tag.set("pages", pages);
+            tag.setString("title", "Party");
+            tag.setString("author", "Server");
+            nmsBook.setTag(tag);
+
+            ItemStack oldItem = p.getItemInHand();
+            p.setItemInHand(CraftItemStack.asBukkitCopy(nmsBook));
+
+            EntityPlayer ep = ((CraftPlayer) p).getHandle();
+            ep.playerConnection.sendPacket(new PacketPlayOutCustomPayload("MC|BOpen", new PacketDataSerializer(Unpooled.buffer())));
+
+            p.setItemInHand(oldItem);
+        } catch (Exception e) {
+            // Fallback: use clickable chat messages
+            p.sendMessage(getMsg(p, Messages.COMMAND_PARTY_OPEN_SELECT_SIZE));
+            TextComponent opt12 = new TextComponent("\u00A72\u00A7l> 12");
+            opt12.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/party open 12"));
+            TextComponent opt16 = new TextComponent("\u00A72\u00A7l> 16");
+            opt16.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/party open 16"));
+            TextComponent opt24 = new TextComponent("\u00A72\u00A7l> 24");
+            opt24.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/party open 24"));
+            TextComponent optCustom = new TextComponent("\u00A72\u00A7l> Custom");
+            optCustom.setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/party open "));
+            p.spigot().sendMessage(opt12);
+            p.spigot().sendMessage(opt16);
+            p.spigot().sendMessage(opt24);
+            p.spigot().sendMessage(optCustom);
         }
     }
 

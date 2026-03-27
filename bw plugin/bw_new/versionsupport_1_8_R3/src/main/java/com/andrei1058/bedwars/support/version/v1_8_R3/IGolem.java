@@ -59,7 +59,7 @@ public class IGolem extends EntityIronGolem {
         this.setSize(1.4F, 2.9F);
         ((Navigation) this.getNavigation()).a(true);
         this.goalSelector.a(1, new PathfinderGoalFloat(this));
-        this.goalSelector.a(2, new PathfinderGoalMeleeAttack(this, 1.5D, false));
+        this.goalSelector.a(2, new PathfinderGoalMeleeAttack(this, 1.0D, false));
         this.targetSelector.a(1, new PathfinderGoalHurtByTarget(this, true));
         this.goalSelector.a(3, new PathfinderGoalRandomStroll(this, 1D));
         this.goalSelector.a(4, new PathfinderGoalRandomLookaround(this));

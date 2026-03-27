@@ -20,6 +20,7 @@
 
 package com.andrei1058.bedwars.shop.listeners;
 
+import com.andrei1058.bedwars.BedWars;
 import com.andrei1058.bedwars.api.arena.IArena;
 import com.andrei1058.bedwars.arena.Arena;
 import com.andrei1058.bedwars.shop.ShopCache;
@@ -31,11 +32,13 @@ import com.andrei1058.bedwars.shop.main.ShopIndex;
 import com.andrei1058.bedwars.shop.quickbuy.PlayerQuickBuyCache;
 import com.andrei1058.bedwars.shop.quickbuy.QuickBuyAdd;
 import com.andrei1058.bedwars.shop.quickbuy.QuickBuyElement;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.*;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 
 import static com.andrei1058.bedwars.BedWars.nms;
@@ -46,10 +49,19 @@ public class InventoryListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
-        if (e.isCancelled()) return;
         if (!(e.getWhoClicked() instanceof Player)) return;
 
         Player p = (Player) e.getWhoClicked();
+
+        // Handle hotbar manager clicks regardless of arena state or cancelled state (works in lobby too)
+        // Must run before the isCancelled check because Inventory.onClick cancels all lobby clicks
+        if (PlayerHotbarCache.hotbarViewers.contains(p.getUniqueId())) {
+            e.setCancelled(true);
+            PlayerHotbarCache.handleClick(p, e.getSlot());
+            return;
+        }
+
+        if (e.isCancelled()) return;
 
         IArena a = Arena.getArenaByPlayer(p);
         if (a == null) return;
@@ -74,7 +86,10 @@ public class InventoryListener implements Listener {
             // Hotbar Manager button at slot 53
             if (e.getSlot() == 53) {
                 p.closeInventory();
-                PlayerHotbarCache.openGUI(p);
+                if (PlayerHotbarCache.getCache(p.getUniqueId()) == null) {
+                    new PlayerHotbarCache(p);
+                }
+                PlayerHotbarCache.openWhenReady(p);
                 return;
             }
 
@@ -101,7 +116,10 @@ public class InventoryListener implements Listener {
             // Hotbar Manager button at slot 53
             if (e.getSlot() == 53) {
                 p.closeInventory();
-                PlayerHotbarCache.openGUI(p);
+                if (PlayerHotbarCache.getCache(p.getUniqueId()) == null) {
+                    new PlayerHotbarCache(p);
+                }
+                PlayerHotbarCache.openWhenReady(p);
                 return;
             }
 
@@ -141,9 +159,6 @@ public class InventoryListener implements Listener {
                 cache.setElement(e.getSlot(), cc);
             }
             e.getWhoClicked().closeInventory();
-        } else if (PlayerHotbarCache.hotbarViewers.contains(p.getUniqueId())) {
-            e.setCancelled(true);
-            PlayerHotbarCache.handleClick(p, e.getSlot());
         }
     }
 
@@ -217,7 +232,33 @@ public class InventoryListener implements Listener {
         ShopIndex.indexViewers.remove(e.getPlayer().getUniqueId());
         ShopCategory.categoryViewers.remove(e.getPlayer().getUniqueId());
         QuickBuyAdd.quickBuyAdds.remove(e.getPlayer().getUniqueId());
-        PlayerHotbarCache.hotbarViewers.remove(e.getPlayer().getUniqueId());
+
+        java.util.UUID uid = e.getPlayer().getUniqueId();
+
+        // If the hotbar manager is refreshing (openGUI close+reopen), don't touch hotbarViewers
+        if (!PlayerHotbarCache.hotbarRefreshing.contains(uid)) {
+            PlayerHotbarCache.hotbarViewers.remove(uid);
+            // For lobby players, clean up hotbar cache after a real close
+            if (Arena.getArenaByPlayer((Player) e.getPlayer()) == null) {
+                Bukkit.getScheduler().runTaskLater(BedWars.plugin, () -> {
+                    if (!PlayerHotbarCache.hotbarViewers.contains(uid)) {
+                        PlayerHotbarCache cache = PlayerHotbarCache.getCache(uid);
+                        if (cache != null) {
+                            cache.destroy();
+                        }
+                    }
+                }, 1L);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent e) {
+        // Clean up any leftover hotbar cache for disconnecting players
+        PlayerHotbarCache cache = PlayerHotbarCache.getCache(e.getPlayer().getUniqueId());
+        if (cache != null && Arena.getArenaByPlayer(e.getPlayer()) == null) {
+            cache.destroy();
+        }
     }
 
     /**

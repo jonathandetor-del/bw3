@@ -190,7 +190,7 @@ public class ShopManager extends ConfigManager {
                     0, 1, "", "", "", false);
 
             adCategoryContentTier(ConfigPath.SHOP_PATH_CATEGORY_MELEE, "stick", 22, "tier1",
-                    BedWars.getForCurrentVersion("STICK", "STICK", "STICK"), 0, 1, true, 10, "gold", false, false, true);
+                    BedWars.getForCurrentVersion("STICK", "STICK", "STICK"), 0, 1, true, 5, "gold", false, false, true);
             addBuyItem(ConfigPath.SHOP_PATH_CATEGORY_MELEE, "stick", "tier1", "stick", BedWars.getForCurrentVersion("STICK", "STICK", "STICK"),
                     0, 1, "KNOCKBACK 1", "", "", false);
 
@@ -342,7 +342,7 @@ public class ShopManager extends ConfigManager {
                     0, 1, "", "", "", false);
 
             adCategoryContentTier(ConfigPath.SHOP_PATH_CATEGORY_UTILITY, "bridge-egg", 28, "tier1",
-                    BedWars.getForCurrentVersion("EGG", "EGG", "EGG"), 0, 1, false, 3, "emerald", false, false);
+                    BedWars.getForCurrentVersion("EGG", "EGG", "EGG"), 0, 1, false, 1, "emerald", false, false);
             addBuyItem(ConfigPath.SHOP_PATH_CATEGORY_UTILITY, "bridge-egg", "tier1", "egg", BedWars.getForCurrentVersion("EGG", "EGG", "EGG"),
                     0, 1, "", "", "", false);
 

@@ -104,8 +104,18 @@ public class SQLite implements Database {
                         "sword INTEGER DEFAULT -1, blocks INTEGER DEFAULT -1, pickaxe INTEGER DEFAULT -1, " +
                         "axe INTEGER DEFAULT -1, bow INTEGER DEFAULT -1, shears INTEGER DEFAULT -1, " +
                         "potions INTEGER DEFAULT -1, compass INTEGER DEFAULT -1, utility INTEGER DEFAULT -1, " +
-                        "blocks2 INTEGER DEFAULT -1, utility2 INTEGER DEFAULT -1);";
+                        "blocks2 INTEGER DEFAULT -1, utility2 INTEGER DEFAULT -1, " +
+                        "ladder INTEGER DEFAULT -1, golden_apple INTEGER DEFAULT -1, fireball INTEGER DEFAULT -1);";
                 st.executeUpdate(sql);
+            }
+            // Migrate existing tables to add new columns
+            String[] newCols = {"ladder", "golden_apple", "fireball"};
+            for (String col : newCols) {
+                try (Statement st = connection.createStatement()) {
+                    st.executeUpdate("ALTER TABLE hotbar_preferences ADD COLUMN " + col + " INTEGER DEFAULT -1;");
+                } catch (SQLException ignored) {
+                    // Column already exists
+                }
             }
         }catch (SQLException e) {
             e.printStackTrace();
@@ -506,7 +516,7 @@ public class SQLite implements Database {
 
             if (exists) {
                 try (PreparedStatement ps = connection.prepareStatement(
-                        "UPDATE hotbar_preferences SET sword=?, blocks=?, pickaxe=?, axe=?, bow=?, shears=?, potions=?, compass=?, utility=?, blocks2=?, utility2=? WHERE uuid=?;")) {
+                        "UPDATE hotbar_preferences SET sword=?, blocks=?, pickaxe=?, axe=?, bow=?, shears=?, potions=?, compass=?, utility=?, blocks2=?, utility2=?, ladder=?, golden_apple=?, fireball=? WHERE uuid=?;")) {
                     ps.setInt(1, preferences.getOrDefault("sword", -1));
                     ps.setInt(2, preferences.getOrDefault("blocks", -1));
                     ps.setInt(3, preferences.getOrDefault("pickaxe", -1));
@@ -518,12 +528,15 @@ public class SQLite implements Database {
                     ps.setInt(9, preferences.getOrDefault("utility", -1));
                     ps.setInt(10, preferences.getOrDefault("blocks2", -1));
                     ps.setInt(11, preferences.getOrDefault("utility2", -1));
-                    ps.setString(12, uuid.toString());
+                    ps.setInt(12, preferences.getOrDefault("ladder", -1));
+                    ps.setInt(13, preferences.getOrDefault("golden_apple", -1));
+                    ps.setInt(14, preferences.getOrDefault("fireball", -1));
+                    ps.setString(15, uuid.toString());
                     ps.executeUpdate();
                 }
             } else {
                 try (PreparedStatement ps = connection.prepareStatement(
-                        "INSERT INTO hotbar_preferences (uuid, sword, blocks, pickaxe, axe, bow, shears, potions, compass, utility, blocks2, utility2) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);")) {
+                        "INSERT INTO hotbar_preferences (uuid, sword, blocks, pickaxe, axe, bow, shears, potions, compass, utility, blocks2, utility2, ladder, golden_apple, fireball) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);")) {
                     ps.setString(1, uuid.toString());
                     ps.setInt(2, preferences.getOrDefault("sword", -1));
                     ps.setInt(3, preferences.getOrDefault("blocks", -1));
@@ -536,6 +549,9 @@ public class SQLite implements Database {
                     ps.setInt(10, preferences.getOrDefault("utility", -1));
                     ps.setInt(11, preferences.getOrDefault("blocks2", -1));
                     ps.setInt(12, preferences.getOrDefault("utility2", -1));
+                    ps.setInt(13, preferences.getOrDefault("ladder", -1));
+                    ps.setInt(14, preferences.getOrDefault("golden_apple", -1));
+                    ps.setInt(15, preferences.getOrDefault("fireball", -1));
                     ps.executeUpdate();
                 }
             }
@@ -547,7 +563,7 @@ public class SQLite implements Database {
     @Override
     public Map<String, Integer> getHotbarPreferences(UUID uuid) {
         Map<String, Integer> result = new HashMap<>();
-        String[] categories = {"sword", "blocks", "pickaxe", "axe", "bow", "shears", "potions", "compass", "utility", "blocks2", "utility2"};
+        String[] categories = {"sword", "blocks", "pickaxe", "axe", "bow", "shears", "potions", "compass", "utility", "blocks2", "utility2", "ladder", "golden_apple", "fireball"};
         try {
             checkConnection();
 

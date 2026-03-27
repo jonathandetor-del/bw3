@@ -152,16 +152,7 @@ public class Internal implements Party {
                 p.members.remove(member);
                 p.moderators.remove(member);
                 chatModes.remove(member.getUniqueId());
-                if (p.members.size() <= 1) {
-                    if (!p.members.isEmpty()) {
-                        Player last = p.members.get(0);
-                        last.sendMessage("\u00A79Party \u00A78> \u00A7cThe party was disbanded because all other members left.");
-                        chatModes.remove(last.getUniqueId());
-                    }
-                    cancelReconnectTasksForParty(p);
-                    p.members.clear();
-                    parties.remove(p);
-                }
+                /* Party persists with 1 member (Hypixel style) */
                 return;
             }
         }
@@ -202,16 +193,7 @@ public class Internal implements Party {
                 p.members.remove(target);
                 p.moderators.remove(target);
                 chatModes.remove(target.getUniqueId());
-                if (p.members.size() <= 1) {
-                    if (!p.members.isEmpty()) {
-                        Player last = p.members.get(0);
-                        last.sendMessage("\u00A79Party \u00A78> \u00A7cThe party was disbanded because all other members left.");
-                        chatModes.remove(last.getUniqueId());
-                    }
-                    cancelReconnectTasksForParty(p);
-                    p.members.clear();
-                    parties.remove(p);
-                }
+                /* Party persists with 1 member (Hypixel style) */
             }
         }
     }
@@ -301,7 +283,7 @@ public class Internal implements Party {
                     }
                 }
             }
-            if (newOwner == null || party.members.size() <= 1) {
+            if (newOwner == null) {
                 // Only the owner — disband, no grace
                 getParty().disband(p);
                 chatModes.remove(uuid);
@@ -321,21 +303,7 @@ public class Internal implements Party {
         party.members.remove(p);
         chatModes.remove(uuid);
 
-        // Check if party too small after removal
-        if (party.members.size() <= 1) {
-            // Only 1 member left — disband with notification
-            if (!party.members.isEmpty()) {
-                Player last = party.owner;
-                last.sendMessage("\u00A79Party \u00A78> \u00A7cThe party was disbanded because all other members left.");
-                chatModes.remove(last.getUniqueId());
-                cancelReconnectTasksForParty(party);
-                party.members.clear();
-                parties.remove(party);
-            }
-            return;
-        }
-
-        // Store disconnect info for grace period
+        // Store disconnect info for grace period (party persists with 1 member)
         final PartyData partyRef = party;
         disconnectedPartyMap.put(uuid, partyRef);
         disconnectedNames.put(uuid, playerName);
@@ -360,15 +328,7 @@ public class Internal implements Party {
                 mem.sendMessage("\u00A79Party \u00A78> \u00A7c" + name + " was removed from the party (disconnected).");
             }
 
-            // If party too small now, disband with notification
-            if (pd.members.size() <= 1 && !pd.members.isEmpty()) {
-                Player last = pd.owner;
-                last.sendMessage("\u00A79Party \u00A78> \u00A7cThe party was disbanded because all other members left.");
-                chatModes.remove(last.getUniqueId());
-                cancelReconnectTasksForParty(pd);
-                pd.members.clear();
-                parties.remove(pd);
-            }
+            /* Party persists with 1 member (Hypixel style) */
         }, RECONNECT_GRACE_TICKS);
 
         reconnectTasks.put(uuid, task);
@@ -570,6 +530,8 @@ public class Internal implements Party {
         private boolean allInvite = false;
         private boolean privateGame = false;
         private boolean muted = false;
+        private boolean openParty = false;
+        private int maxSize = 0;
 
         public PartyData(Player p) {
             owner = p;
@@ -610,6 +572,22 @@ public class Internal implements Party {
 
         public void setMuted(boolean muted) {
             this.muted = muted;
+        }
+
+        public boolean isOpenParty() {
+            return openParty;
+        }
+
+        public void setOpenParty(boolean openParty) {
+            this.openParty = openParty;
+        }
+
+        public int getMaxSize() {
+            return maxSize;
+        }
+
+        public void setMaxSize(int maxSize) {
+            this.maxSize = maxSize;
         }
     }
 }

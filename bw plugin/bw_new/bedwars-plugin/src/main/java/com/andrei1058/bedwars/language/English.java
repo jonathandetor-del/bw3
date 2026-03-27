@@ -96,10 +96,12 @@ public class English extends Language {
                 "&e/party list &7- &bLists the players in your current party",
                 "&e/party mute &7- &bMutes party chat so only Staff, Party Mods and the leader can chat",
                 "&e/party poll <question/answer/answer/answer..> &7- &bCreates a poll",
-                "&e/party private &7- &bEnables private games for your party",
                 "&e/party promote <player> &7- &bPromotes another party member",
                 "&e/party setting <setting> <value> &7- &bToggles party settings",
                 "&e/party transfer <player> &7- &bTransfers the party to another player",
+                "&e/party join <player> &7- &bJoin a player's open party",
+                "&e/party open &7- &bOpen your party so anyone can join",
+                "&e/party private &7- &bToggles private games for your party (MVP+ only)",
                 "&e/party warp &7- &bWarps the members of a party to your current server",
                 "")
         );
@@ -140,17 +142,31 @@ public class English extends Language {
         yml.addDefault(Messages.COMMAND_PARTY_MUTED_CANNOT_CHAT, "&9Party &8> &cThe party is currently muted.");
         yml.addDefault(Messages.COMMAND_PARTY_PRIVATE_ENABLED, "&9Party &8> &ePrivate games have been &aenabled&e.");
         yml.addDefault(Messages.COMMAND_PARTY_PRIVATE_DISABLED, "&9Party &8> &ePrivate games have been &cdisabled&e.");
+        yml.addDefault(Messages.COMMAND_PARTY_PRIVATE_TOGGLE, "&9Party &8> {prefix}{player} &e{status} &bPrivate Game");
+        yml.addDefault(Messages.COMMAND_PARTY_PRIVATE_NO_PERM, "&cYou must be &b[MVP&c+&b] &cor above to use Private Games!");
+        yml.addDefault(Messages.ARENA_JOIN_DENIED_PRIVATE_GAME, "&cThis is a private game! Only party members can join.");
         yml.addDefault(Messages.COMMAND_PARTY_POLL_USAGE, "&9Party &8> &eUsage: &7/party poll <question/answer1/answer2/...>");
         yml.addDefault(Messages.COMMAND_PARTY_POLL_QUESTION, "&9Party &8> &b{player} &ecreated a poll: &a{question}");
         yml.addDefault(Messages.COMMAND_PARTY_POLL_ANSWER, " &e{number}. &b{answer} &7(Click to vote)");
         yml.addDefault(Messages.COMMAND_PARTY_SETTING_HELP, Arrays.asList("",
                 "&aParty Settings",
                 "&e/p setting allinvite &7- &bToggles all invite",
-                "&e/p private &7- &bToggles private games",
+                "&e/p setting public &7- &bOpens your party so anyone can join",
+                "&e/p setting private &7- &bCloses your party",
+                "&e/p private &7- &bToggles private games (MVP+ only)",
                 "&e/p mute &7- &bMutes the party chat",
                 ""));
         yml.addDefault(Messages.COMMAND_PARTY_SETTING_ALLINVITE_ON, "&9Party &8> &eAll invite has been &aenabled&e. All party members can now invite.");
         yml.addDefault(Messages.COMMAND_PARTY_SETTING_ALLINVITE_OFF, "&9Party &8> &eAll invite has been &cdisabled&e. Only the leader and mods can invite.");
+        yml.addDefault(Messages.COMMAND_PARTY_OPEN_CREATED, "&aCreated a public party! Players can join with &b/party join {player}&a.");
+        yml.addDefault(Messages.COMMAND_PARTY_OPEN_CAPPED, "&eParty is capped at &b{max} &eplayers.");
+        yml.addDefault(Messages.COMMAND_PARTY_CLOSED, "&9Party &8> &eYour party is now &cprivate&e. Players can no longer join without an invite.");
+        yml.addDefault(Messages.COMMAND_PARTY_JOIN_SUCCESS, "&9Party &8> &7{player} &ehas joined the party!");
+        yml.addDefault(Messages.COMMAND_PARTY_JOIN_DENIED_NOT_OPEN, "&9Party &8> &cThat player's party is not open.");
+        yml.addDefault(Messages.COMMAND_PARTY_JOIN_DENIED_FULL, "&9Party &8> &cThat party is full!");
+        yml.addDefault(Messages.COMMAND_PARTY_JOIN_USAGE, "&9Party &8> &eUsage: &7/party join <player>");
+        yml.addDefault(Messages.COMMAND_PARTY_OPEN_ALREADY, "&9Party &8> &cYour party is already open!");
+        yml.addDefault(Messages.COMMAND_PARTY_OPEN_SELECT_SIZE, "&9Party &8> &eSelect the maximum number of players for your party:");
         yml.addDefault(Messages.COMMAND_PARTY_PROMOTE_TO_MOD, "&9Party &8> &e{player} &ahas been promoted to Party Moderator.");
         yml.addDefault(Messages.COMMAND_PARTY_PROMOTED_TO_MOD, "&9Party &8> &aYou have been promoted to Party Moderator.");
         yml.addDefault(Messages.COMMAND_PARTY_CHAT_USAGE, "&9Party &8> &eUsage: &7/chat p &eor &7/chat a");

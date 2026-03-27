@@ -295,9 +295,10 @@
     div.className = 'log-line ' + (cls || '');
     div.textContent = text;
     applyFilter(div);
+    const nearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 80;
     el.appendChild(div);
     if (el.children.length > 2000) el.removeChild(el.firstChild);
-    el.scrollTop = el.scrollHeight;
+    if (nearBottom) el.scrollTop = el.scrollHeight;
   }
 
   function classifyLog(line) {

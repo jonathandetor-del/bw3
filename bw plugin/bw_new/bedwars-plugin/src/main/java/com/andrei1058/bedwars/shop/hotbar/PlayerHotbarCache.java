@@ -25,9 +25,14 @@ public class PlayerHotbarCache {
     private static final ConcurrentHashMap<UUID, String> selectedCategory = new ConcurrentHashMap<>();
 
     public static final List<UUID> hotbarViewers = new ArrayList<>();
+    public static final Set<UUID> hotbarRefreshing = new HashSet<>();
 
     public static final String[] CATEGORIES = {
             "sword", "blocks", "pickaxe", "axe", "bow", "shears", "potions", "utility"
+    };
+
+    public static final String[] SECONDARY_CATEGORIES = {
+            "ladder", "golden_apple", "fireball"
     };
 
     public static final Set<String> DUAL_SLOT_CATEGORIES = new HashSet<>(Arrays.asList("blocks", "utility"));
@@ -46,6 +51,31 @@ public class PlayerHotbarCache {
             }
             loaded = true;
         });
+    }
+
+    /**
+     * Opens the GUI once the cache has finished loading from the database.
+     * If already loaded, opens immediately. Otherwise polls every 2 ticks.
+     */
+    public static void openWhenReady(Player player) {
+        PlayerHotbarCache cache = getCache(player.getUniqueId());
+        if (cache == null) return;
+        if (cache.loaded) {
+            openGUI(player);
+            return;
+        }
+        // Poll until loaded (every 2 ticks = 100ms), give up after 3 seconds
+        final int[] attempts = {0};
+        final int[] taskId = {-1};
+        taskId[0] = Bukkit.getScheduler().scheduleSyncRepeatingTask(BedWars.plugin, () -> {
+            if (!player.isOnline()) { Bukkit.getScheduler().cancelTask(taskId[0]); return; }
+            PlayerHotbarCache c = getCache(player.getUniqueId());
+            if (c == null) { Bukkit.getScheduler().cancelTask(taskId[0]); return; }
+            if (c.loaded || ++attempts[0] > 30) {
+                Bukkit.getScheduler().cancelTask(taskId[0]);
+                openGUI(player);
+            }
+        }, 2L, 2L);
     }
 
     public Map<String, Integer> getPreferences() {
@@ -126,6 +156,10 @@ public class PlayerHotbarCache {
         if (item.getType() == Material.BOW) return "bow";
         if (item.getType() == Material.SHEARS) return "shears";
         if (item.getType() == Material.POTION) return "potions";
+        // Specific items before generic block/utility fallback
+        if (item.getType() == Material.LADDER) return "ladder";
+        if (item.getType() == Material.GOLDEN_APPLE) return "golden_apple";
+        if (name.equals("FIREBALL") || name.equals("FIRE_CHARGE")) return "fireball";
         if (item.getType().isBlock() && item.getType() != Material.TNT) return "blocks";
         return "utility";
     }
@@ -150,10 +184,10 @@ public class PlayerHotbarCache {
         PlayerHotbarCache cache = getCache(player.getUniqueId());
         if (cache == null) return;
 
-        Inventory inv = Bukkit.createInventory(null, 36,
+        Inventory inv = Bukkit.createInventory(null, 45,
                 Language.getMsg(player, Messages.HOTBAR_MANAGER_TITLE));
 
-        // Row 0 (slots 0-7): Category icons, slot 8: back arrow
+        // Row 0 (slots 0-7): Primary category icons, slot 8: back arrow
         inv.setItem(0, makeCategoryIcon("sword", player, BedWars.getForCurrentVersion("WOOD_SWORD", "WOOD_SWORD", "WOODEN_SWORD"), 0));
         inv.setItem(1, makeCategoryIcon("blocks", player, BedWars.getForCurrentVersion("STAINED_CLAY", "STAINED_CLAY", "ORANGE_TERRACOTTA"), 1));
         inv.setItem(2, makeCategoryIcon("pickaxe", player, BedWars.getForCurrentVersion("WOOD_PICKAXE", "WOOD_PICKAXE", "WOODEN_PICKAXE"), 0));
@@ -173,23 +207,33 @@ public class PlayerHotbarCache {
         }
         inv.setItem(8, backArrow);
 
-        // Row 1 (slots 9-17): Separator
+        // Row 1 (slots 9-11): Secondary categories (ladder, golden apple, fireball)
+        inv.setItem(9, makeCategoryIcon("ladder", player, "LADDER", 0));
+        inv.setItem(10, makeCategoryIcon("golden_apple", player, "GOLDEN_APPLE", 0));
+        inv.setItem(11, makeCategoryIcon("fireball", player, BedWars.getForCurrentVersion("FIREBALL", "FIREBALL", "FIRE_CHARGE"), 0));
+
+        // Separator for remaining slots 12-17
         ItemStack sep = nms.createItemStack(BedWars.getForCurrentVersion("STAINED_GLASS_PANE", "STAINED_GLASS_PANE", "GRAY_STAINED_GLASS_PANE"), 1, (short) 7);
         ItemMeta sepMeta = sep.getItemMeta();
         if (sepMeta != null) {
             sepMeta.setDisplayName(" ");
             sep.setItemMeta(sepMeta);
         }
-        for (int i = 9; i <= 17; i++) {
+        for (int i = 12; i <= 17; i++) {
             inv.setItem(i, sep.clone());
         }
 
-        // Row 2 (slots 18-26): Hotbar slots 0-8
-        for (int slot = 0; slot <= 8; slot++) {
-            inv.setItem(18 + slot, makeHotbarSlotIcon(cache, slot, player));
+        // Row 2 (slots 18-26): Full separator row
+        for (int i = 18; i <= 26; i++) {
+            inv.setItem(i, sep.clone());
         }
 
-        // Row 3: barrier for reset at slot 35
+        // Row 3 (slots 27-35): Hotbar slots 0-8
+        for (int slot = 0; slot <= 8; slot++) {
+            inv.setItem(27 + slot, makeHotbarSlotIcon(cache, slot, player));
+        }
+
+        // Row 4: barrier for reset at slot 44
         ItemStack barrier = nms.createItemStack("BARRIER", 1, (short) 0);
         ItemMeta barrierMeta = barrier.getItemMeta();
         if (barrierMeta != null) {
@@ -197,12 +241,15 @@ public class PlayerHotbarCache {
             barrierMeta.setLore(Collections.singletonList("§7Click to reset all preferences"));
             barrier.setItemMeta(barrierMeta);
         }
-        inv.setItem(35, barrier);
+        inv.setItem(44, barrier);
 
+        UUID uuid = player.getUniqueId();
+        hotbarRefreshing.add(uuid);
         player.openInventory(inv);
-        if (!hotbarViewers.contains(player.getUniqueId())) {
-            hotbarViewers.add(player.getUniqueId());
+        if (!hotbarViewers.contains(uuid)) {
+            hotbarViewers.add(uuid);
         }
+        Bukkit.getScheduler().runTaskLater(BedWars.plugin, () -> hotbarRefreshing.remove(uuid), 1L);
     }
 
     private static ItemStack makeCategoryIcon(String category, Player player, String material, int data) {
@@ -219,6 +266,9 @@ public class PlayerHotbarCache {
                 case "shears": displayName = "§aShears"; break;
                 case "potions": displayName = "§aPotions"; break;
                 case "utility": displayName = "§aUtility"; break;
+                case "ladder": displayName = "§aLadder"; break;
+                case "golden_apple": displayName = "§aGolden Apple"; break;
+                case "fireball": displayName = "§aFireball"; break;
                 default: displayName = "§a" + category; break;
             }
             meta.setDisplayName(displayName);
@@ -290,6 +340,9 @@ public class PlayerHotbarCache {
             case "shears": return nms.createItemStack("SHEARS", 1, (short) 0);
             case "potions": return nms.createItemStack("POTION", 1, (short) 0);
             case "utility": return nms.createItemStack("TNT", 1, (short) 0);
+            case "ladder": return nms.createItemStack("LADDER", 1, (short) 0);
+            case "golden_apple": return nms.createItemStack("GOLDEN_APPLE", 1, (short) 0);
+            case "fireball": return nms.createItemStack(BedWars.getForCurrentVersion("FIREBALL", "FIREBALL", "FIRE_CHARGE"), 1, (short) 0);
             default: return nms.createItemStack("BARRIER", 1, (short) 0);
         }
     }
@@ -312,28 +365,37 @@ public class PlayerHotbarCache {
             return;
         }
 
-        // Clicked a category in row 0 (slots 0-7)
+        // Clicked a primary category in row 0 (slots 0-7)
         if (slot >= 0 && slot <= 7) {
             selectedCategory.put(uuid, CATEGORIES[slot]);
             openGUI(player);
             return;
         }
 
-        // Clicked a hotbar slot in row 2 (slots 18-26)
-        if (slot >= 18 && slot <= 26) {
-            int hotbarSlot = slot - 18;
+        // Clicked a secondary category in row 1 (slots 9-11)
+        if (slot >= 9 && slot <= 11) {
+            selectedCategory.put(uuid, SECONDARY_CATEGORIES[slot - 9]);
+            openGUI(player);
+            return;
+        }
+
+        // Clicked a hotbar slot in row 3 (slots 27-35)
+        if (slot >= 27 && slot <= 35) {
+            int hotbarSlot = slot - 27;
             String selected = selectedCategory.get(uuid);
             if (selected != null) {
                 cache.setPreference(selected, hotbarSlot);
+                cache.saveToDb();
                 selectedCategory.remove(uuid);
                 openGUI(player);
             }
             return;
         }
 
-        // Clicked barrier (slot 35) = reset all
-        if (slot == 35) {
+        // Clicked barrier (slot 44) = reset all
+        if (slot == 44) {
             cache.preferences.clear();
+            cache.saveToDb();
             selectedCategory.remove(uuid);
             openGUI(player);
         }
@@ -341,6 +403,13 @@ public class PlayerHotbarCache {
 
     private static String capitalize(String s) {
         if (s == null || s.isEmpty()) return s;
-        return s.substring(0, 1).toUpperCase() + s.substring(1);
+        // Handle underscored names like "golden_apple" → "Golden Apple"
+        String[] parts = s.split("_");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) sb.append(' ');
+            sb.append(parts[i].substring(0, 1).toUpperCase()).append(parts[i].substring(1));
+        }
+        return sb.toString();
     }
 }

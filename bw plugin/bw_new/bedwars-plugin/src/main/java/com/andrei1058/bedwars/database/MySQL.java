@@ -164,9 +164,19 @@ public class MySQL implements Database {
                     "sword INT DEFAULT -1, blocks INT DEFAULT -1, pickaxe INT DEFAULT -1, " +
                     "axe INT DEFAULT -1, bow INT DEFAULT -1, shears INT DEFAULT -1, " +
                     "potions INT DEFAULT -1, compass INT DEFAULT -1, utility INT DEFAULT -1, " +
-                    "blocks2 INT DEFAULT -1, utility2 INT DEFAULT -1);";
+                    "blocks2 INT DEFAULT -1, utility2 INT DEFAULT -1, " +
+                    "ladder INT DEFAULT -1, golden_apple INT DEFAULT -1, fireball INT DEFAULT -1);";
             try (Statement statement = connection.createStatement()) {
                 statement.executeUpdate(sql);
+            }
+            // Migrate existing tables to add new columns
+            String[] newCols = {"ladder", "golden_apple", "fireball"};
+            for (String col : newCols) {
+                try (Statement statement = connection.createStatement()) {
+                    statement.executeUpdate("ALTER TABLE hotbar_preferences ADD COLUMN " + col + " INT DEFAULT -1;");
+                } catch (SQLException ignored) {
+                    // Column already exists
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -522,11 +532,12 @@ public class MySQL implements Database {
 
     @Override
     public void saveHotbarPreferences(UUID uuid, Map<String, Integer> preferences) {
-        String sql = "INSERT INTO hotbar_preferences (uuid, sword, blocks, pickaxe, axe, bow, shears, potions, compass, utility, blocks2, utility2) " +
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE " +
+        String sql = "INSERT INTO hotbar_preferences (uuid, sword, blocks, pickaxe, axe, bow, shears, potions, compass, utility, blocks2, utility2, ladder, golden_apple, fireball) " +
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE " +
                 "sword=VALUES(sword), blocks=VALUES(blocks), pickaxe=VALUES(pickaxe), axe=VALUES(axe), " +
                 "bow=VALUES(bow), shears=VALUES(shears), potions=VALUES(potions), compass=VALUES(compass), " +
-                "utility=VALUES(utility), blocks2=VALUES(blocks2), utility2=VALUES(utility2);";
+                "utility=VALUES(utility), blocks2=VALUES(blocks2), utility2=VALUES(utility2), " +
+                "ladder=VALUES(ladder), golden_apple=VALUES(golden_apple), fireball=VALUES(fireball);";
         try (Connection con = dataSource.getConnection()) {
             try (PreparedStatement ps = con.prepareStatement(sql)) {
                 ps.setString(1, uuid.toString());
@@ -541,6 +552,9 @@ public class MySQL implements Database {
                 ps.setInt(10, preferences.getOrDefault("utility", -1));
                 ps.setInt(11, preferences.getOrDefault("blocks2", -1));
                 ps.setInt(12, preferences.getOrDefault("utility2", -1));
+                ps.setInt(13, preferences.getOrDefault("ladder", -1));
+                ps.setInt(14, preferences.getOrDefault("golden_apple", -1));
+                ps.setInt(15, preferences.getOrDefault("fireball", -1));
                 ps.executeUpdate();
             }
         } catch (SQLException e) {
@@ -551,7 +565,7 @@ public class MySQL implements Database {
     @Override
     public Map<String, Integer> getHotbarPreferences(UUID uuid) {
         Map<String, Integer> result = new HashMap<>();
-        String[] categories = {"sword", "blocks", "pickaxe", "axe", "bow", "shears", "potions", "compass", "utility", "blocks2", "utility2"};
+        String[] categories = {"sword", "blocks", "pickaxe", "axe", "bow", "shears", "potions", "compass", "utility", "blocks2", "utility2", "ladder", "golden_apple", "fireball"};
         try (Connection con = dataSource.getConnection()) {
             try (PreparedStatement ps = con.prepareStatement("SELECT * FROM hotbar_preferences WHERE uuid = ?;")) {
                 ps.setString(1, uuid.toString());

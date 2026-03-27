@@ -72,6 +72,7 @@ import com.andrei1058.bedwars.sidebar.SidebarService;
 import com.andrei1058.bedwars.support.citizens.JoinNPC;
 import com.andrei1058.bedwars.support.paper.TeleportManager;
 import com.andrei1058.bedwars.support.papi.SupportPAPI;
+import com.andrei1058.bedwars.support.party.Internal;
 import com.andrei1058.bedwars.support.vault.WithEconomy;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -481,6 +482,25 @@ public class Arena implements IArena {
                 if (!canJoin) {
                     p.sendMessage(getMsg(p, Messages.COMMAND_JOIN_DENIED_IS_FULL_OF_VIPS));
                     return false;
+                }
+            }
+
+            // Private game check: if any party leader in this arena has private game enabled,
+            // only their party members can join. Skip when skipOwnerCheck is true
+            // (party warp / auto-join — those players are already verified as party members).
+            if (!skipOwnerCheck) {
+                for (Player inGame : players) {
+                    if (getParty().hasParty(inGame) && getParty().isOwner(inGame)) {
+                        Internal.PartyData pd = Internal.getPartyDataByPlayer(inGame);
+                        if (pd != null && pd.isPrivateGame()) {
+                            // This arena is a private game — only party members can join
+                            if (!getParty().hasParty(p) || !getParty().getMembers(inGame).contains(p)) {
+                                p.sendMessage(getMsg(p, Messages.ARENA_JOIN_DENIED_PRIVATE_GAME));
+                                return false;
+                            }
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -932,33 +952,7 @@ public class Arena implements IArena {
             }, 5L);
         }
 
-        /* Remove also the party only during active gameplay */
-        if (getParty().hasParty(p)) {
-            if (getParty().isOwner(p)) {
-                if (status == GameState.playing) {
-                    if (getParty().isInternal()) {
-                        for (Player mem : new ArrayList<>(getParty().getMembers(p))) {
-                            mem.sendMessage(getMsg(mem, Messages.ARENA_LEAVE_PARTY_DISBANDED));
-                        }
-                    }
-                    getParty().disband(p);
-
-                    // prevent arena from staring with a single player
-                    teamuri = false;
-                    for (Player on : getPlayers()) {
-                        if (getParty().hasParty(on)) {
-                            teamuri = true;
-                        }
-                    }
-                    if (status == GameState.starting && (maxInTeam > players.size() && teamuri || players.size() < minPlayers && !teamuri)) {
-                        changeStatus(GameState.waiting);
-                        for (Player on : players) {
-                            on.sendMessage(getMsg(on, Messages.ARENA_START_COUNTDOWN_STOPPED_INSUFF_PLAYERS_CHAT));
-                        }
-                    }
-                }
-            }
-        }
+        /* Party persists when leaving a game — only /party leave or disconnect affects it */
         p.setFlying(false);
         p.setAllowFlight(false);
 
@@ -1062,19 +1056,7 @@ public class Arena implements IArena {
             });
         }
 
-        /* Remove also the party only during active gameplay */
-        if (getParty().hasParty(p)) {
-            if (getParty().isOwner(p)) {
-                if (status == GameState.playing) {
-                    if (getParty().isInternal()) {
-                        for (Player mem : new ArrayList<>(getParty().getMembers(p))) {
-                            mem.sendMessage(getMsg(mem, Messages.ARENA_LEAVE_PARTY_DISBANDED));
-                        }
-                    }
-                    getParty().disband(p);
-                }
-            }
-        }
+        /* Party persists when leaving a game — only /party leave or disconnect affects it */
 
         p.setFlying(false);
         p.setAllowFlight(false);
@@ -1113,7 +1095,7 @@ public class Arena implements IArena {
             reJoin.getTask().destroy();
         }
 
-        PlayerReJoinEvent ev = new PlayerReJoinEvent(p, this, BedWars.config.getInt(ConfigPath.GENERAL_CONFIGURATION_RE_SPAWN_COUNTDOWN));
+        PlayerReJoinEvent ev = new PlayerReJoinEvent(p, this, 10);
         Bukkit.getPluginManager().callEvent(ev);
         if (ev.isCancelled()) return false;
 

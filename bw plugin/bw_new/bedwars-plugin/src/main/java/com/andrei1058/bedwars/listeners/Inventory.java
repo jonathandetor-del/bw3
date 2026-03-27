@@ -30,6 +30,7 @@ import com.andrei1058.bedwars.api.server.ServerType;
 import com.andrei1058.bedwars.api.server.SetupType;
 import com.andrei1058.bedwars.arena.Arena;
 import com.andrei1058.bedwars.arena.SetupSession;
+import com.andrei1058.bedwars.shop.hotbar.PlayerHotbarCache;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -182,7 +183,10 @@ public class Inventory implements Listener {
         if (!i.getItemMeta().hasDisplayName()) return;
         if (BedWars.getServerType() == ServerType.MULTIARENA) {
             if (e.getWhoClicked().getLocation().getWorld().getName().equalsIgnoreCase(BedWars.getLobbyWorld())) {
-                e.setCancelled(true);
+                // Don't cancel if the player is in the hotbar manager GUI
+                if (!PlayerHotbarCache.hotbarViewers.contains(p.getUniqueId())) {
+                    e.setCancelled(true);
+                }
             }
         }
 
