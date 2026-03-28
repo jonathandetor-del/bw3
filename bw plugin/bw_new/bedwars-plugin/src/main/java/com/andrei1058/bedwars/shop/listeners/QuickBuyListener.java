@@ -40,11 +40,12 @@ public class QuickBuyListener implements Listener {
             cache.destroy();
         }
         new PlayerQuickBuyCache(e.getPlayer());
-        PlayerHotbarCache hbCache = PlayerHotbarCache.getCache(e.getPlayer().getUniqueId());
-        if (hbCache != null) {
-            hbCache.destroy();
+        // Reuse existing hotbar cache — preferences are player-level, not arena-specific.
+        // Destroying and recreating causes a race condition where the async load
+        // completes before the async save, losing preferences.
+        if (PlayerHotbarCache.getCache(e.getPlayer().getUniqueId()) == null) {
+            new PlayerHotbarCache(e.getPlayer());
         }
-        new PlayerHotbarCache(e.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -55,11 +56,10 @@ public class QuickBuyListener implements Listener {
             cache.destroy();
         }
         new PlayerQuickBuyCache(e.getPlayer());
-        PlayerHotbarCache hbCache = PlayerHotbarCache.getCache(e.getPlayer().getUniqueId());
-        if (hbCache != null) {
-            hbCache.destroy();
+        // Reuse existing hotbar cache — see above
+        if (PlayerHotbarCache.getCache(e.getPlayer().getUniqueId()) == null) {
+            new PlayerHotbarCache(e.getPlayer());
         }
-        new PlayerHotbarCache(e.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)

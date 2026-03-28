@@ -38,8 +38,8 @@ public class PlayerHotbarCache {
     public static final Set<String> DUAL_SLOT_CATEGORIES = new HashSet<>(Arrays.asList("blocks", "utility"));
 
     private final UUID player;
-    private final Map<String, Integer> preferences = new HashMap<>();
-    private boolean loaded = false;
+    private final Map<String, Integer> preferences = new ConcurrentHashMap<>();
+    private volatile boolean loaded = false;
 
     public PlayerHotbarCache(Player player) {
         this.player = player.getUniqueId();
@@ -132,8 +132,10 @@ public class PlayerHotbarCache {
     }
 
     public void saveToDb() {
+        // Snapshot the preferences so the async save is not affected by concurrent modifications
+        final Map<String, Integer> snapshot = new HashMap<>(preferences);
         Bukkit.getScheduler().runTaskAsynchronously(BedWars.plugin,
-                () -> BedWars.getRemoteDatabase().saveHotbarPreferences(player, preferences));
+                () -> BedWars.getRemoteDatabase().saveHotbarPreferences(player, snapshot));
     }
 
     public void destroy() {
