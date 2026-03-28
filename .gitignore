@@ -34,3 +34,6 @@ arena-maps/
 # Old plugin configs (replaced by m160bw equivalents)
 authme-config/
 fastlogin-config/
+
+# Plugin JARs — managed via panel upload, not git
+plugins-extra/

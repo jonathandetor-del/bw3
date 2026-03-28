@@ -11,6 +11,11 @@ restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
 numReplicas = 1
 
+# Persistent volume — survives redeployments so plugins, configs,
+# worlds, and databases are preserved across container rebuilds.
+[deploy.volumes]
+"/data" = "bedwars-data"
+
 # Port Configuration
 [[services.ports]]
 name = "minecraft"

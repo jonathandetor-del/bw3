@@ -19,3 +19,6 @@ lobby/
 m160bw.tar/
 authme-config/
 fastlogin-config/
+
+# Plugin JARs — managed via panel upload, not Docker image
+plugins-extra/

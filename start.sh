@@ -190,11 +190,14 @@ patch_bedwars_config_migrations() {
     sed -i "s|^allowed-commands:.*|allowed-commands: [shout, bw, leave, hub, lobby, l]|" "$config_file"
     echo "Updated allowed-commands whitelist"
 
-    # Force regenerate shop.yml so updated item defaults (prices, tiers, amounts) take effect.
+    # Delete shop.yml only once so the plugin regenerates updated defaults.
+    # After the first delete, a marker prevents repeated deletions on future boots.
     shop_file="/data/plugins/BedWars1058/shop.yml"
-    if [ -f "$shop_file" ]; then
+    shop_marker="/data/plugins/BedWars1058/.shop-reset-v1"
+    if [ -f "$shop_file" ] && [ ! -f "$shop_marker" ]; then
         rm -f "$shop_file"
-        echo "Deleted shop.yml — plugin will regenerate with updated defaults"
+        touch "$shop_marker"
+        echo "Deleted shop.yml (one-time reset) — plugin will regenerate with updated defaults"
     fi
 
     # Lobby location from m160bw: X=-39.54, Y=72.0, Z=0.47, Yaw=-87.65, Pitch=-4.98, World=world
@@ -234,9 +237,12 @@ patch_bedwars_messages() {
     lang_dir="/data/plugins/BedWars1058/Languages"
     lang_file="$lang_dir/messages_en.yml"
     mkdir -p "$lang_dir"
-    # Always re-seed the messages file with our format overrides.
-    # BedWars fills in all other missing defaults when it loads.
-    rm -f "$lang_file"
+    # Only seed the messages file if it doesn't exist yet.
+    # This preserves any manual edits or plugin-generated defaults across redeployments.
+    if [ -f "$lang_file" ]; then
+        echo "BedWars messages_en.yml already exists — preserving existing file"
+        return
+    fi
     cat > "$lang_file" <<'LANGEOF'
 format-papi-player-team: "{TeamColor}"
 format-chat-team: "{level}{team}{playername}&f: {message}"
@@ -309,7 +315,7 @@ format-tab:
       suffix:
         - ""
 LANGEOF
-    echo "Seeded BedWars messages_en.yml with chat + tab format overrides"
+    echo "Seeded BedWars messages_en.yml (first boot — chat + tab format overrides)"
 }
 
 # ---- Auto-extract arena map zips uploaded via File Browser ----
