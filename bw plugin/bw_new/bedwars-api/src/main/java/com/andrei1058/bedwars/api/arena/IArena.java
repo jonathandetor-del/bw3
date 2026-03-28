@@ -553,4 +553,9 @@ public interface IArena {
      * @return the emerald generator tier (e.g., 1, 2, 3, 4, ...)
      */
     public int getEmeraldTier();
+
+    /**
+     * Check if this arena is a private game.
+     */
+    boolean isPrivateGame();
 }

@@ -184,6 +184,7 @@ public class Arena implements IArena {
 
     private boolean allowMapBreak = false;
     private @Nullable ITeam winner;
+    private boolean privateGame = false;
 
     /**
      * Load an arena.
@@ -456,6 +457,12 @@ public class Arena implements IArena {
                     }
                     addPlayer(mem, true);
                 }
+
+                // Flag arena as private if this party owner has privateGame enabled
+                Internal.PartyData ownerPd = Internal.getPartyDataByPlayer(p);
+                if (ownerPd != null && ownerPd.isPrivateGame()) {
+                    this.privateGame = true;
+                }
             }
         }
 
@@ -493,6 +500,8 @@ public class Arena implements IArena {
                     if (getParty().hasParty(inGame) && getParty().isOwner(inGame)) {
                         Internal.PartyData pd = Internal.getPartyDataByPlayer(inGame);
                         if (pd != null && pd.isPrivateGame()) {
+                            // Flag this arena as private
+                            this.privateGame = true;
                             // This arena is a private game — only party members can join
                             if (!getParty().hasParty(p) || !getParty().getMembers(inGame).contains(p)) {
                                 p.sendMessage(getMsg(p, Messages.ARENA_JOIN_DENIED_PRIVATE_GAME));
@@ -2678,6 +2687,11 @@ public class Arena implements IArena {
 
     public void setAllowMapBreak(boolean allowMapBreak) {
         this.allowMapBreak = allowMapBreak;
+    }
+
+    @Override
+    public boolean isPrivateGame() {
+        return privateGame;
     }
 
     @Override

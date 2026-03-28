@@ -29,7 +29,6 @@ import com.andrei1058.bedwars.api.language.Messages;
 import com.andrei1058.bedwars.arena.Arena;
 import com.andrei1058.bedwars.commands.shout.ShoutCommand;
 import com.andrei1058.bedwars.stats.PlayerStats;
-import com.andrei1058.bedwars.support.party.Internal;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -254,27 +253,8 @@ public class PAPISupport extends PlaceholderExpansion {
                 }
                 break;
             case "private_status":
-                if (a != null) {
-                    for (Player inGame : a.getPlayers()) {
-                        if (BedWars.getParty().hasParty(inGame) && BedWars.getParty().isOwner(inGame)) {
-                            Internal.PartyData pd = Internal.getPartyDataByPlayer(inGame);
-                            if (pd != null && pd.isPrivateGame()) {
-                                response = "[P]";
-                                break;
-                            }
-                        }
-                    }
-                    if (response.isEmpty()) {
-                        for (Player spec : a.getSpectators()) {
-                            if (BedWars.getParty().hasParty(spec) && BedWars.getParty().isOwner(spec)) {
-                                Internal.PartyData pd = Internal.getPartyDataByPlayer(spec);
-                                if (pd != null && pd.isPrivateGame()) {
-                                    response = "[P]";
-                                    break;
-                                }
-                            }
-                        }
-                    }
+                if (a != null && a.isPrivateGame()) {
+                    response = "[P]";
                 }
                 break;
         }
