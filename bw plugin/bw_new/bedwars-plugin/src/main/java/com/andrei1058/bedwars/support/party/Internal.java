@@ -532,6 +532,7 @@ public class Internal implements Party {
         private boolean muted = false;
         private boolean openParty = false;
         private int maxSize = 0;
+        private final Map<Integer, String> rules = new LinkedHashMap<>();
 
         public PartyData(Player p) {
             owner = p;
@@ -588,6 +589,24 @@ public class Internal implements Party {
 
         public void setMaxSize(int maxSize) {
             this.maxSize = maxSize;
+        }
+
+        public Map<Integer, String> getRules() {
+            return rules;
+        }
+
+        public void setRule(int number, String text) {
+            if (number >= 1 && number <= 10) {
+                rules.put(number, text);
+            }
+        }
+
+        public void removeRule(int number) {
+            rules.remove(number);
+        }
+
+        public boolean hasRules() {
+            return !rules.isEmpty();
         }
     }
 }

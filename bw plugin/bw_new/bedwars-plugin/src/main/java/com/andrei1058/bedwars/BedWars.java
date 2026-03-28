@@ -592,6 +592,16 @@ public class BedWars extends JavaPlugin {
             nms.registerCommand("ac", new com.andrei1058.bedwars.commands.party.AllChatCommand("ac"));
         }
         nms.registerCommand("hotbarmanager", new com.andrei1058.bedwars.commands.hotbar.HotbarManagerCommand("hotbarmanager"));
+
+        // Register private game rule commands
+        for (int i = 1; i <= 10; i++) {
+            nms.registerCommand("rule" + i, new com.andrei1058.bedwars.commands.party.RulesCommand("rule" + i, com.andrei1058.bedwars.commands.party.RulesCommand.Type.SET, i));
+            nms.registerCommand("rrule" + i, new com.andrei1058.bedwars.commands.party.RulesCommand("rrule" + i, com.andrei1058.bedwars.commands.party.RulesCommand.Type.REMOVE, i));
+        }
+        nms.registerCommand("rules", new com.andrei1058.bedwars.commands.party.RulesCommand("rules", com.andrei1058.bedwars.commands.party.RulesCommand.Type.VIEW, 0));
+
+        // Register emotes command
+        nms.registerCommand("emotes", new com.andrei1058.bedwars.commands.EmotesCommand("emotes"));
     }
 
     public void onDisable() {

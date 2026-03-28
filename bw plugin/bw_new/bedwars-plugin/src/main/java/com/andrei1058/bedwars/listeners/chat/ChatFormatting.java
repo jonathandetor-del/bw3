@@ -72,6 +72,9 @@ public class ChatFormatting implements Listener {
             e.setMessage(ChatColor.translateAlternateColorCodes('&', e.getMessage()));
         }
 
+        // Replace emotes in chat message
+        e.setMessage(EmoteManager.replaceEmotes(e.getMessage()));
+
         Language language = getPlayerLanguage(p);
 
         // handle lobby world for multi arena

@@ -723,6 +723,28 @@ public class Arena implements IArena {
 
             p.sendMessage(getMsg(p, Messages.COMMAND_JOIN_SPECTATOR_MSG).replace("{arena}", this.getDisplayName()));
 
+            // Display private game rules to new spectator after short delay
+            final Player spectator = p;
+            final Arena thisArena = this;
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                // Find private game rules for this arena
+                for (com.andrei1058.bedwars.support.party.Internal.PartyData party : com.andrei1058.bedwars.support.party.Internal.getParties()) {
+                    if (party.isPrivateGame() && party.hasRules()) {
+                        Player owner = party.getOwner();
+                        if (thisArena.getPlayers().contains(owner) || thisArena.getSpectators().contains(owner)) {
+                            com.andrei1058.bedwars.commands.party.RulesCommand.displayRules(spectator, party);
+                            break;
+                        }
+                        for (Player member : BedWars.getParty().getMembers(owner)) {
+                            if (thisArena.getPlayers().contains(member) || thisArena.getSpectators().contains(member)) {
+                                com.andrei1058.bedwars.commands.party.RulesCommand.displayRules(spectator, party);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }, 20L);
+
             /* update generator holograms for spectators */
             String iso = Language.getPlayerLanguage(p).getIso();
             for (IGenerator o : getOreGenerators()) {

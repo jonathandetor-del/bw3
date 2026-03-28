@@ -133,6 +133,11 @@ public class GameStartingTask implements Runnable, StartingTask {
             task.cancel();
             getArena().changeStatus(GameState.playing);
 
+            // Display private game rules after a short delay
+            Bukkit.getScheduler().runTaskLater(BedWars.plugin, () -> {
+                com.andrei1058.bedwars.commands.party.RulesCommand.displayRulesToAll(getArena());
+            }, 40L);
+
             // Check if emerald should be first based on time
             if (getArena().getUpgradeDiamondsCount() < getArena().getUpgradeEmeraldsCount()) {
                 getArena().setNextEvent(NextEvent.DIAMOND_GENERATOR_TIER_II);
