@@ -456,7 +456,7 @@ sidebar:
       - '&e&lBED WARS,&e&lBED WARS,&e&lBED WARS,&e&lBED WARS,&e&lBED WARS,&e&lBED
         WARS,&e&lBED WARS,&e&lBED WARS,&f&lBED WARS,&f&lBED WARS,&e&lBED WARS,&e&lBED
         WARS,&f&lBED WARS,&f&lBED WARS,'
-      - '&7{date} &8m189H'
+      - '&7{date} &8m189H %bw1058_private_status%'
       - ''
       - '&f{nextEvent} in &a{time}'
       - ''
@@ -476,7 +476,7 @@ sidebar:
       - '&e&lBED WARS,&e&lBED WARS,&e&lBED WARS,&e&lBED WARS,&e&lBED WARS,&e&lBED
         WARS,&e&lBED WARS,&e&lBED WARS,&f&lBED WARS,&f&lBED WARS,&e&lBED WARS,&e&lBED
         WARS,&f&lBED WARS,&f&lBED WARS,'
-      - '&7{date} &8m189H'
+      - '&7{date} &8m189H %bw1058_private_status%'
       - ''
       - '&f{nextEvent} in &a{time}'
       - ''
@@ -496,7 +496,7 @@ sidebar:
       - '&e&lBED WARS,&e&lBED WARS,&e&lBED WARS,&e&lBED WARS,&e&lBED WARS,&e&lBED
         WARS,&e&lBED WARS,&e&lBED WARS,&f&lBED WARS,&f&lBED WARS,&e&lBED WARS,&e&lBED
         WARS,&f&lBED WARS,&f&lBED WARS,'
-      - '&7{date} &8m189H'
+      - '&7{date} &8m189H %bw1058_private_status%'
       - ''
       - '&f{nextEvent} in &a{time}'
       - ''
