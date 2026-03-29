@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelLayout } from "@/components/PanelLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  Search, Shield, Crown, MoreHorizontal, Loader2,
+  Search, UserPlus, Shield, Crown, Ban, Trash2, MoreHorizontal, Star, ShieldOff,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -15,183 +14,264 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api } from "@/lib/api";
-import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface StaffMember {
-  name: string;
+interface User {
+  id: string;
+  username: string;
+  nickname: string | null;
   uuid: string;
-  level: number;
-  source: string;
-  group?: string;
+  role: "owner" | "admin" | "moderator" | "player";
+  status: "online" | "offline" | "banned";
+  isOpped: boolean;
+  lastSeen: string;
+  playtime: string;
+  gamesPlayed: number;
+  banReason?: string;
 }
 
-const groupColors: Record<string, string> = {
+const mockUsers: User[] = [
+  { id: "1", username: "ServerOwner", nickname: null, uuid: "a1b2c3d4", role: "owner", status: "online", isOpped: true, lastSeen: "Now", playtime: "342h", gamesPlayed: 1204 },
+  { id: "2", username: "AdminSteve", nickname: "~Admin~", uuid: "e5f6g7h8", role: "admin", status: "online", isOpped: true, lastSeen: "Now", playtime: "156h", gamesPlayed: 523 },
+  { id: "3", username: "ModAlex", nickname: null, uuid: "i9j0k1l2", role: "moderator", status: "online", isOpped: true, lastSeen: "Now", playtime: "89h", gamesPlayed: 287 },
+  { id: "4", username: "xNotch", nickname: "TheNotch", uuid: "m3n4o5p6", role: "player", status: "online", isOpped: false, lastSeen: "Now", playtime: "45h", gamesPlayed: 167 },
+  { id: "5", username: "ProGamer99", nickname: "~PG99~", uuid: "q7r8s9t0", role: "player", status: "online", isOpped: false, lastSeen: "Now", playtime: "234h", gamesPlayed: 891 },
+  { id: "6", username: "BuilderBob", nickname: null, uuid: "u1v2w3x4", role: "player", status: "offline", isOpped: false, lastSeen: "2h ago", playtime: "78h", gamesPlayed: 45 },
+  { id: "7", username: "HackerKid", nickname: "xXHackerXx", uuid: "y5z6a7b8", role: "player", status: "banned", isOpped: false, lastSeen: "3d ago", playtime: "2h", gamesPlayed: 8, banReason: "Using kill aura & fly hacks" },
+  { id: "8", username: "DiamondQueen", nickname: "Diamond", uuid: "c9d0e1f2", role: "player", status: "offline", isOpped: false, lastSeen: "1d ago", playtime: "312h", gamesPlayed: 1045 },
+  { id: "9", username: "GrieferMax", nickname: "xDestroyerx", uuid: "g3h4i5j6", role: "player", status: "banned", isOpped: false, lastSeen: "5d ago", playtime: "12h", gamesPlayed: 34, banReason: "Griefing and harassment" },
+  { id: "10", username: "SpamBot2000", nickname: null, uuid: "k7l8m9n0", role: "player", status: "banned", isOpped: false, lastSeen: "7d ago", playtime: "0h", gamesPlayed: 0, banReason: "Spam bot - auto-banned" },
+];
+
+const roleColors: Record<string, string> = {
   owner: "bg-console-warn/10 text-console-warn border-console-warn/20",
   admin: "bg-destructive/10 text-destructive border-destructive/20",
-  dev: "bg-accent/10 text-accent border-accent/20",
-  default: "bg-muted text-muted-foreground border-border",
+  moderator: "bg-console-info/10 text-console-info border-console-info/20",
+  player: "bg-muted text-muted-foreground border-border",
 };
 
-function getGroupColor(group?: string) {
-  if (!group) return groupColors.default;
-  return groupColors[group.toLowerCase()] || "bg-console-info/10 text-console-info border-console-info/20";
-}
+const statusColors: Record<string, string> = {
+  online: "bg-primary",
+  offline: "bg-muted-foreground",
+  banned: "bg-destructive",
+};
 
 export default function UsersPage() {
-  const qc = useQueryClient();
+  const [users, setUsers] = useState(mockUsers);
   const [searchQuery, setSearchQuery] = useState("");
-  const [groupDialog, setGroupDialog] = useState<{ open: boolean; staff: StaffMember | null; selectedGroup: string; saving: boolean }>({ open: false, staff: null, selectedGroup: "", saving: false });
+  const [filterRole, setFilterRole] = useState<string>("all");
+  const [addDialog, setAddDialog] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [newRole, setNewRole] = useState("player");
+  const [activeTab, setActiveTab] = useState("all");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['staff'],
-    queryFn: api.getStaff,
+  const filtered = users.filter((u) => {
+    const matchesSearch = u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.nickname?.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesRole = filterRole === "all" || u.role === filterRole;
+    return matchesSearch && matchesRole;
   });
 
-  const { data: groupsData } = useQuery({
-    queryKey: ['staff-groups'],
-    queryFn: api.getStaffGroups,
-  });
+  const bannedUsers = users.filter((u) => u.status === "banned");
+  const oppedUsers = users.filter((u) => u.isOpped);
+  const online = users.filter((u) => u.status === "online").length;
 
-  const staff: StaffMember[] = data?.staff || [];
-  const groups: string[] = groupsData?.groups || [];
-
-  const filtered = staff.filter((u) =>
-    u.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleDeop = async (name: string) => {
-    try {
-      await api.setStaffOp(name, 'deop');
-      toast.success(`${name} deoped`);
-      qc.invalidateQueries({ queryKey: ['staff'] });
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Deop failed");
-    }
+  const handleUnban = (userId: string) => {
+    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, status: "offline" as const, banReason: undefined } : u));
   };
 
-  const handleSetGroup = async () => {
-    if (!groupDialog.staff || !groupDialog.selectedGroup) return;
-    setGroupDialog(prev => ({ ...prev, saving: true }));
-    try {
-      await api.setStaffGroup(groupDialog.staff.name, groupDialog.selectedGroup);
-      toast.success(`${groupDialog.staff.name} set to ${groupDialog.selectedGroup}`);
-      setGroupDialog({ open: false, staff: null, selectedGroup: "", saving: false });
-      qc.invalidateQueries({ queryKey: ['staff'] });
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed to set group");
-      setGroupDialog(prev => ({ ...prev, saving: false }));
-    }
+  const handleDeop = (userId: string) => {
+    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, isOpped: false } : u));
   };
 
   return (
     <PanelLayout
-      title="Staff Management"
+      title="User Management"
+      actions={
+        <Button size="sm" className="bg-primary text-primary-foreground" onClick={() => setAddDialog(true)}>
+          <UserPlus className="h-4 w-4 mr-1" /> Add User
+        </Button>
+      }
     >
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground">Total Staff</p>
-          <p className="text-2xl font-bold text-foreground">{staff.length}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground">Op Level 4</p>
-          <p className="text-2xl font-bold text-console-warn">{staff.filter(s => s.level === 4).length}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground">Groups Loaded</p>
-          <p className="text-2xl font-bold text-console-info">{groups.length}</p>
-        </div>
+      <div className="grid grid-cols-5 gap-4 mb-6">
+        {[
+          { label: "Total Users", value: users.length },
+          { label: "Online", value: online, color: "text-primary" },
+          { label: "Staff", value: users.filter((u) => u.role !== "player").length, color: "text-console-info" },
+          { label: "Banned", value: bannedUsers.length, color: "text-destructive" },
+          { label: "Opped", value: oppedUsers.length, color: "text-console-warn" },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground">{stat.label}</p>
+            <p className={`text-2xl font-bold ${stat.color || "text-foreground"}`}>{stat.value}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Search */}
-      <div className="relative flex-1 mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search staff..." className="pl-9 bg-card border-border" />
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="bg-card border border-border">
+          <TabsTrigger value="all">All Users</TabsTrigger>
+          <TabsTrigger value="banned" className="data-[state=active]:text-destructive">
+            <Ban className="h-3.5 w-3.5 mr-1.5" /> Banned ({bannedUsers.length})
+          </TabsTrigger>
+          <TabsTrigger value="opped" className="data-[state=active]:text-console-warn">
+            <Star className="h-3.5 w-3.5 mr-1.5" /> Opped ({oppedUsers.length})
+          </TabsTrigger>
+        </TabsList>
 
-      {isLoading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      )}
+        <TabsContent value="all">
+          <div className="flex gap-3 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search users..." className="pl-9 bg-card border-border" />
+            </div>
+            <Select value={filterRole} onValueChange={setFilterRole}>
+              <SelectTrigger className="w-40 bg-card border-border"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="owner">Owner</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="moderator">Moderator</SelectItem>
+                <SelectItem value="player">Player</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-      {/* Staff table */}
-      <div className="rounded-lg border border-border overflow-hidden">
-        <div className="grid grid-cols-[1fr_120px_80px_80px_48px] gap-4 px-4 py-2 bg-card text-xs uppercase tracking-wider text-muted-foreground/60 border-b border-border">
-          <span>User</span>
-          <span>Group</span>
-          <span>Op Level</span>
-          <span>Source</span>
-          <span />
-        </div>
-        <div className="divide-y divide-border">
-          {filtered.map((user) => (
-            <div key={user.uuid} className="grid grid-cols-[1fr_120px_80px_80px_48px] gap-4 px-4 py-3 items-center hover:bg-surface-hover group">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
-                    {user.name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-medium text-foreground">{user.name}</p>
-                    {user.level === 4 && <Crown className="h-3 w-3 text-console-warn" />}
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="grid grid-cols-[1fr_100px_80px_80px_100px_80px_48px] gap-4 px-4 py-2 bg-card text-xs uppercase tracking-wider text-muted-foreground/60 border-b border-border">
+              <span>User</span><span>Role</span><span>Status</span><span>Games</span><span>Playtime</span><span>Last Seen</span><span />
+            </div>
+            <div className="divide-y divide-border">
+              {filtered.map((user) => (
+                <div key={user.id} className="grid grid-cols-[1fr_100px_80px_80px_100px_80px_48px] gap-4 px-4 py-3 items-center hover:bg-surface-hover group">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">{user.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${statusColors[user.status]}`} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-foreground">{user.username}</p>
+                        {user.isOpped && <Star className="h-3 w-3 text-console-warn fill-console-warn" />}
+                        {user.nickname && <span className="text-xs text-accent">aka "{user.nickname}"</span>}
+                      </div>
+                      <p className="text-xs text-muted-foreground font-mono">{user.uuid}</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground font-mono">{user.uuid.slice(0, 8)}...</p>
+                  <Badge variant="outline" className={`text-xs w-fit ${roleColors[user.role]}`}>
+                    {user.role === "owner" && <Crown className="h-3 w-3 mr-1" />}
+                    {user.role === "admin" && <Shield className="h-3 w-3 mr-1" />}
+                    {user.role}
+                  </Badge>
+                  <span className={`text-xs capitalize ${user.status === "banned" ? "text-destructive" : user.status === "online" ? "text-primary" : "text-muted-foreground"}`}>{user.status}</span>
+                  <span className="text-sm text-muted-foreground">{user.gamesPlayed}</span>
+                  <span className="text-sm text-muted-foreground">{user.playtime}</span>
+                  <span className="text-xs text-muted-foreground">{user.lastSeen}</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 h-7 w-7 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-popover border-border">
+                      <DropdownMenuItem><Shield className="h-4 w-4 mr-2" /> Change Role</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => user.isOpped ? handleDeop(user.id) : setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isOpped: true } : u))}>
+                        <Star className="h-4 w-4 mr-2" /> {user.isOpped ? "Deop" : "Op"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => user.status === "banned" ? handleUnban(user.id) : setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: "banned" as const, banReason: "Banned by admin" } : u))}>
+                        <Ban className="h-4 w-4 mr-2" /> {user.status === "banned" ? "Unban" : "Ban"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="h-4 w-4 mr-2" /> Remove</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              </div>
-              <Badge variant="outline" className={`text-xs w-fit ${getGroupColor(user.group)}`}>
-                {user.group || "—"}
-              </Badge>
-              <span className="text-sm text-muted-foreground">{user.level}</span>
-              <span className="text-xs text-muted-foreground capitalize">{user.source}</span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 h-7 w-7 p-0">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover border-border">
-                  <DropdownMenuItem onClick={() => setGroupDialog({ open: true, staff: user, selectedGroup: user.group || "", saving: false })}>
-                    <Shield className="h-4 w-4 mr-2" /> Change Group
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeop(user.name)}>
-                    <Shield className="h-4 w-4 mr-2" /> Deop
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              ))}
             </div>
-          ))}
-          {!isLoading && filtered.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              {searchQuery ? "No staff match your search" : "No staff members found"}
-            </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </TabsContent>
 
-      {/* Change Group Dialog */}
-      <Dialog open={groupDialog.open} onOpenChange={(open) => setGroupDialog(prev => ({ ...prev, open }))}>
+        <TabsContent value="banned">
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="grid grid-cols-[1fr_1fr_120px_100px] gap-4 px-4 py-2 bg-card text-xs uppercase tracking-wider text-muted-foreground/60 border-b border-border">
+              <span>Player</span><span>Reason</span><span>Last Seen</span><span>Action</span>
+            </div>
+            <div className="divide-y divide-border">
+              {bannedUsers.length === 0 ? (
+                <div className="px-4 py-8 text-center text-muted-foreground text-sm">No banned players</div>
+              ) : bannedUsers.map((user) => (
+                <div key={user.id} className="grid grid-cols-[1fr_1fr_120px_100px] gap-4 px-4 py-3 items-center">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-destructive/10 text-destructive text-xs">{user.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{user.username}</p>
+                      {user.nickname && <span className="text-xs text-muted-foreground">aka "{user.nickname}"</span>}
+                    </div>
+                  </div>
+                  <p className="text-sm text-destructive/80 truncate">{user.banReason || "No reason"}</p>
+                  <span className="text-xs text-muted-foreground">{user.lastSeen}</span>
+                  <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10" onClick={() => handleUnban(user.id)}>
+                    <ShieldOff className="h-3.5 w-3.5 mr-1" /> Unban
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="opped">
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="grid grid-cols-[1fr_100px_100px_100px] gap-4 px-4 py-2 bg-card text-xs uppercase tracking-wider text-muted-foreground/60 border-b border-border">
+              <span>Player</span><span>Role</span><span>Status</span><span>Action</span>
+            </div>
+            <div className="divide-y divide-border">
+              {oppedUsers.length === 0 ? (
+                <div className="px-4 py-8 text-center text-muted-foreground text-sm">No opped players</div>
+              ) : oppedUsers.map((user) => (
+                <div key={user.id} className="grid grid-cols-[1fr_100px_100px_100px] gap-4 px-4 py-3 items-center">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-console-warn/10 text-console-warn text-xs">{user.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{user.username}</p>
+                      {user.nickname && <span className="text-xs text-muted-foreground">aka "{user.nickname}"</span>}
+                    </div>
+                  </div>
+                  <Badge variant="outline" className={`text-xs w-fit ${roleColors[user.role]}`}>{user.role}</Badge>
+                  <span className={`text-xs capitalize ${user.status === "online" ? "text-primary" : "text-muted-foreground"}`}>{user.status}</span>
+                  <Button size="sm" variant="outline" className="border-console-warn/30 text-console-warn hover:bg-console-warn/10" onClick={() => handleDeop(user.id)}>
+                    <ShieldOff className="h-3.5 w-3.5 mr-1" /> Deop
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={addDialog} onOpenChange={setAddDialog}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Change Group for {groupDialog.staff?.name}</DialogTitle>
-            <DialogDescription className="text-muted-foreground">Select a LuckPerms group to assign</DialogDescription>
+            <DialogTitle className="text-foreground">Add User</DialogTitle>
+            <DialogDescription className="text-muted-foreground">Add a player or staff member to the server whitelist.</DialogDescription>
           </DialogHeader>
-          <Select value={groupDialog.selectedGroup} onValueChange={(v) => setGroupDialog(prev => ({ ...prev, selectedGroup: v }))}>
-            <SelectTrigger className="bg-muted border-border"><SelectValue placeholder="Select group" /></SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              {groups.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <div className="space-y-4">
+            <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="Minecraft username" className="bg-muted border-border" />
+            <Select value={newRole} onValueChange={setNewRole}>
+              <SelectTrigger className="bg-muted border-border"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                <SelectItem value="player">Player</SelectItem>
+                <SelectItem value="moderator">Moderator</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setGroupDialog(prev => ({ ...prev, open: false }))}>Cancel</Button>
-            <Button className="bg-primary text-primary-foreground" onClick={handleSetGroup} disabled={groupDialog.saving || !groupDialog.selectedGroup}>
-              {groupDialog.saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Set Group
-            </Button>
+            <Button variant="outline" onClick={() => setAddDialog(false)}>Cancel</Button>
+            <Button className="bg-primary text-primary-foreground" onClick={() => setAddDialog(false)}>Add User</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
