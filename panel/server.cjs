@@ -461,7 +461,9 @@ app.post('/api/server/stop', auth, async (req, res) => {
 // ===========================================================
 
 function safePath(p) {
-  const resolved = path.resolve(DATA_DIR, p || '');
+  // Strip leading slashes so path.resolve treats it as relative to DATA_DIR
+  const clean = (p || '').replace(/^\/+/, '');
+  const resolved = path.resolve(DATA_DIR, clean);
   if (!resolved.startsWith(DATA_DIR)) return null;
   return resolved;
 }
