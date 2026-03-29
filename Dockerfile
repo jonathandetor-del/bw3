@@ -9,7 +9,7 @@ LABEL maintainer="BedWars Server" \
 
 # Environment — Railway injects PORT at runtime
 ENV MINECRAFT_PORT=25565 \
-    MEMORY="32G" \
+    MEMORY="28G" \
     TZ=Asia/Singapore
 
 # FlamePaper is a performance-focused 1.8.8 Paper fork.
