@@ -449,10 +449,18 @@ if command -v nginx >/dev/null 2>&1; then
     fi
 fi
 
-# Server management panel (Node.js)
+# Server management panel (Node.js) — auto-restart on crash
 if command -v node >/dev/null 2>&1 && [ -f /server/panel/server.cjs ]; then
-    cd /server/panel && node server.cjs 2>&1 | tee /tmp/panel.log &
-    echo "Server panel started on port 3000"
+    (
+        while true; do
+            echo "[panel] Starting panel..."
+            cd /server/panel && node server.cjs 2>&1 | tee /tmp/panel.log
+            EXIT_CODE=$?
+            echo "[panel] Panel exited with code $EXIT_CODE — restarting in 3s..."
+            sleep 3
+        done
+    ) &
+    echo "Server panel started on port 3000 (with auto-restart)"
     cd "$SERVER_DIR"
 fi
 

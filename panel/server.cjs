@@ -968,6 +968,21 @@ wss.on('connection', ws => {
 });
 
 // ===========================================================
+// Crash protection — keep the panel alive
+// ===========================================================
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err.message);
+  logAction('crash', { error: err.message, stack: err.stack }, 'recovered');
+});
+
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  console.error('Unhandled rejection:', msg);
+  logAction('crash', { error: msg }, 'recovered');
+});
+
+// ===========================================================
 // Start server
 // ===========================================================
 
