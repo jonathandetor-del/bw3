@@ -230,6 +230,9 @@ public class ConfigPath {
     public static final String GENERAL_TNT_JUMP_DAMAGE_SELF = GENERAL_TNT_JUMP_PATH + ".damage-self";
     public static final String GENERAL_TNT_JUMP_DAMAGE_TEAMMATES = GENERAL_TNT_JUMP_PATH + ".damage-teammates";
     public static final String GENERAL_TNT_JUMP_DAMAGE_OTHERS = GENERAL_TNT_JUMP_PATH + ".damage-others";
+    public static final String GENERAL_TNT_JUMP_HORIZONTAL = GENERAL_TNT_JUMP_PATH + ".horizontal-velocity";
+    public static final String GENERAL_TNT_JUMP_VERTICAL = GENERAL_TNT_JUMP_PATH + ".vertical-velocity";
+    public static final String GENERAL_TNT_JUMP_BOOST_MULTIPLIER = GENERAL_TNT_JUMP_PATH + ".jump-boost-multiplier";
 
     public static final String GENERAL_TNT_BLAST_PROTECTION = "blast-protection";
     public static final String GENERAL_TNT_PROTECTION_END_STONE_BLAST = GENERAL_TNT_BLAST_PROTECTION+".end-stone";
@@ -252,6 +255,10 @@ public class ConfigPath {
     public static final String GENERAL_FIREBALL_DAMAGE_SELF = GENERAL_FIREBALL_DAMAGE_PATH + ".self";
     public static final String GENERAL_FIREBALL_DAMAGE_ENEMY = GENERAL_FIREBALL_DAMAGE_PATH + ".enemy";
     public static final String GENERAL_FIREBALL_DAMAGE_TEAMMATES = GENERAL_FIREBALL_DAMAGE_PATH + ".teammates";
+
+    private static final String GENERAL_FIREBALL_JUMP_PATH = GENERAL_FIREBALL_PATH + ".jump";
+    public static final String GENERAL_FIREBALL_JUMP_HORIZONTAL = GENERAL_FIREBALL_JUMP_PATH + ".horizontal";
+    public static final String GENERAL_FIREBALL_JUMP_VERTICAL = GENERAL_FIREBALL_JUMP_PATH + ".vertical";
 
 
     public static final String GENERAL_CONFIGURATION_PERFORMANCE_PATH = "performance-settings";

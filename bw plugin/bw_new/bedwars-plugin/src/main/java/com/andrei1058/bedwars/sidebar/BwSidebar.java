@@ -309,6 +309,7 @@ public class BwSidebar implements ISidebar {
             providers.add(new PlaceholderProvider("{on}", () -> String.valueOf(arena.getPlayers().size())));
             providers.add(new PlaceholderProvider("{max}", () -> String.valueOf(arena.getMaxPlayers())));
             providers.add(new PlaceholderProvider("{nextEvent}", this::getNextEventName));
+            providers.add(new PlaceholderProvider("{privateStatus}", () -> arena.isPrivateGame() ? "[P]" : ""));
 
             if (arena.isSpectator(player)) {
                 Language lang = getPlayerLanguage(player);

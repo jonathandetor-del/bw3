@@ -50,6 +50,8 @@ public class GameRestartingTask implements Runnable, RestartingTask {
     private int restarting = BedWars.config.getInt(ConfigPath.GENERAL_CONFIGURATION_RESTART) + 5;
     private final BukkitTask task;
 
+    private int fireworkTicks = 0;
+
     public GameRestartingTask(@NotNull Arena arena) {
         this.arena = arena;
         task = Bukkit.getScheduler().runTaskTimer(BedWars.plugin, this, 0, 20L);
@@ -112,6 +114,16 @@ public class GameRestartingTask implements Runnable, RestartingTask {
     public void run() {
 
         restarting--;
+
+        // Launch fireworks for winners during the first 5 seconds
+        if (fireworkTicks < 5 && arena != null && arena.getWinner() != null) {
+            for (Player p : arena.getWinner().getMembers()) {
+                if (p.isOnline()) {
+                    Misc.launchFirework(p);
+                }
+            }
+            fireworkTicks++;
+        }
 
         if (getArena().getPlayers().isEmpty() && restarting > 9) restarting = 9;
         if (restarting == 7) {

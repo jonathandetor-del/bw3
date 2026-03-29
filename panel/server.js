@@ -3,7 +3,7 @@ const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const crypto = require('crypto');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const Rcon = require('./rcon');
@@ -21,10 +21,73 @@ const RCON_PORT = 25575;
 const RCON_PASSWORD = 'HellC0re_Rc0n2026!';
 const DATA_DIR = '/data';
 const LOG_FILE = path.join(DATA_DIR, 'logs', 'latest.log');
+const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
+const PANEL_LOG = path.join(DATA_DIR, 'logs', 'panel-actions.log');
 
-// Session store
+// ===========================================================
+// Session persistence — survives container restarts
+// ===========================================================
+const SESSION_FILE = path.join(DATA_DIR, '.panel-sessions.json');
 const sessions = new Map();
 
+function loadSessions() {
+  try {
+    if (fs.existsSync(SESSION_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
+      const now = Date.now();
+      for (const [token, sess] of Object.entries(data)) {
+        if (now - sess.created < 7 * 24 * 60 * 60 * 1000) {
+          sessions.set(token, sess);
+        }
+      }
+    }
+  } catch (_) {}
+}
+
+function saveSessions() {
+  try {
+    const obj = {};
+    for (const [token, sess] of sessions) obj[token] = sess;
+    fs.writeFileSync(SESSION_FILE, JSON.stringify(obj), 'utf8');
+  } catch (_) {}
+}
+
+loadSessions();
+
+// ===========================================================
+// Action logger — append-only log for audit trail
+// ===========================================================
+function logAction(action, details, status) {
+  try {
+    const dir = path.dirname(PANEL_LOG);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const entry = JSON.stringify({
+      time: new Date().toISOString(),
+      action,
+      details,
+      status
+    }) + '\n';
+    fs.appendFileSync(PANEL_LOG, entry);
+  } catch (_) {}
+}
+
+// ===========================================================
+// Job system — track long-running tasks (backups, extractions)
+// ===========================================================
+const jobs = new Map();
+
+function createJob(type, details) {
+  const id = crypto.randomBytes(8).toString('hex');
+  const job = { id, type, status: 'running', progress: 0, details: details || '', error: null, created: Date.now() };
+  jobs.set(id, job);
+  // Auto-clean old jobs after 30 minutes
+  setTimeout(() => jobs.delete(id), 30 * 60 * 1000);
+  return job;
+}
+
+// ===========================================================
+// Cookies / Auth helpers
+// ===========================================================
 function parseCookies(header) {
   const map = {};
   if (!header) return map;
@@ -40,13 +103,14 @@ function getSession(req) {
   return cookies.session && sessions.has(cookies.session) ? cookies.session : null;
 }
 
-// Auth middleware
 function auth(req, res, next) {
   if (getSession(req)) return next();
-  res.status(401).json({ error: 'Unauthorized' });
+  res.status(401).json({ ok: false, error: 'Unauthorized' });
 }
 
+// ===========================================================
 // RCON singleton with auto-reconnect
+// ===========================================================
 let rcon = null;
 async function getRcon() {
   if (rcon && rcon.connected) return rcon;
@@ -55,31 +119,50 @@ async function getRcon() {
   return rcon;
 }
 
+// ===========================================================
+// Middleware
+// ===========================================================
 app.use(express.json({ limit: '50mb' }));
 app.use(express.raw({ type: 'application/octet-stream', limit: '512mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
 
-// ---- Auth endpoints ----
+// Serve React build (dist/) with fallback to public/
+const distDir = path.join(__dirname, 'dist');
+const publicDir = path.join(__dirname, 'public');
+const staticDir = fs.existsSync(distDir) ? distDir : publicDir;
+app.use(express.static(staticDir));
+
+// ===========================================================
+// Auth endpoints
+// ===========================================================
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   if (username === USERNAME && password === PASSWORD) {
     const token = crypto.randomBytes(32).toString('hex');
     sessions.set(token, { username, created: Date.now() });
+    saveSessions();
     res.setHeader('Set-Cookie', `session=${token}; Path=/; HttpOnly; SameSite=Strict`);
+    logAction('login', { username }, 'ok');
     return res.json({ ok: true });
   }
-  res.status(401).json({ error: 'Invalid credentials' });
+  logAction('login', { username: req.body.username || '?' }, 'fail');
+  res.status(401).json({ ok: false, error: 'Invalid credentials' });
 });
 
 app.post('/api/logout', (req, res) => {
   const token = parseCookies(req.headers.cookie).session;
-  if (token) sessions.delete(token);
+  if (token) { sessions.delete(token); saveSessions(); }
   res.setHeader('Set-Cookie', 'session=; Path=/; HttpOnly; Max-Age=0');
   res.json({ ok: true });
 });
 
-// ---- Server info ----
+app.get('/api/auth/check', (req, res) => {
+  res.json({ ok: !!getSession(req) });
+});
+
+// ===========================================================
+// Server info
+// ===========================================================
 
 app.get('/api/info', auth, async (req, res) => {
   try {
@@ -98,7 +181,6 @@ app.get('/api/info', auth, async (req, res) => {
       if (m) { playerCount = parseInt(m[1]); maxPlayers = parseInt(m[2]); }
     } catch (_) {}
 
-    // Memory from /proc
     let memUsed = 0, memTotal = 0;
     try {
       const info = fs.readFileSync('/proc/meminfo', 'utf8');
@@ -108,35 +190,27 @@ app.get('/api/info', auth, async (req, res) => {
       if (a) memUsed = memTotal - parseInt(a[1]) * 1024;
     } catch (_) {}
 
-    // CPU load average
     let cpuLoad = 0;
     try {
       const load = fs.readFileSync('/proc/loadavg', 'utf8');
       cpuLoad = parseFloat(load.split(' ')[0]) || 0;
     } catch (_) {}
 
-    // Uptime
     let uptime = 0;
     try {
       const up = fs.readFileSync('/proc/uptime', 'utf8');
       uptime = Math.floor(parseFloat(up.split(' ')[0]));
     } catch (_) {}
 
-    // World size
     let worldSize = 0;
     try {
-      const out = require('child_process').execSync(
-        `du -sb ${DATA_DIR} 2>/dev/null | cut -f1`, { encoding: 'utf8', timeout: 5000 }
-      );
+      const out = execSync(`du -sb ${DATA_DIR} 2>/dev/null | cut -f1`, { encoding: 'utf8', timeout: 5000 });
       worldSize = parseInt(out.trim()) || 0;
     } catch (_) {}
 
-    // Disk usage
     let diskUsed = 0, diskTotal = 0;
     try {
-      const df = require('child_process').execSync(
-        `df -B1 /data 2>/dev/null | tail -1`, { encoding: 'utf8', timeout: 5000 }
-      );
+      const df = execSync(`df -B1 /data 2>/dev/null | tail -1`, { encoding: 'utf8', timeout: 5000 });
       const parts = df.trim().split(/\s+/);
       if (parts.length >= 4) {
         diskTotal = parseInt(parts[1]) || 0;
@@ -144,13 +218,15 @@ app.get('/api/info', auth, async (req, res) => {
       }
     } catch (_) {}
 
-    res.json({ tps, playerCount, maxPlayers, memUsed, memTotal, cpuLoad, uptime, worldSize, diskUsed, diskTotal });
+    res.json({ ok: true, tps, playerCount, maxPlayers, memUsed, memTotal, cpuLoad, uptime, worldSize, diskUsed, diskTotal });
   } catch (e) {
-    res.json({ tps: 'N/A', playerCount: 0, maxPlayers: 0, memUsed: 0, memTotal: 0, cpuLoad: 0, uptime: 0, worldSize: 0, error: e.message });
+    res.json({ ok: true, tps: 'N/A', playerCount: 0, maxPlayers: 0, memUsed: 0, memTotal: 0, cpuLoad: 0, uptime: 0, worldSize: 0, error: e.message });
   }
 });
 
-// ---- Players ----
+// ===========================================================
+// Players
+// ===========================================================
 
 app.get('/api/players', auth, async (req, res) => {
   try {
@@ -160,27 +236,33 @@ app.get('/api/players', auth, async (req, res) => {
     const names = parts.length > 1
       ? parts.slice(1).join(':').trim().split(',').map(n => n.trim().replace(/\u00A7[0-9a-fk-or]/gi, '')).filter(Boolean)
       : [];
-    res.json({ players: names });
+    res.json({ ok: true, players: names });
   } catch (e) {
-    res.json({ players: [], error: e.message });
+    res.json({ ok: true, players: [], error: e.message });
   }
 });
 
-// ---- Execute command ----
+// ===========================================================
+// Execute command
+// ===========================================================
 
 app.post('/api/command', auth, async (req, res) => {
   const cmd = String(req.body.command || '').trim();
-  if (!cmd) return res.json({ result: '' });
+  if (!cmd) return res.json({ ok: true, result: '' });
   try {
     const r = await getRcon();
     const result = await r.command(cmd);
-    res.json({ result });
+    logAction('command', { command: cmd }, 'ok');
+    res.json({ ok: true, result });
   } catch (e) {
-    res.json({ result: '', error: e.message });
+    logAction('command', { command: cmd }, 'fail');
+    res.json({ ok: false, result: '', error: e.message });
   }
 });
 
-// ---- Plugins ----
+// ===========================================================
+// Plugins
+// ===========================================================
 
 app.get('/api/plugins', auth, async (req, res) => {
   try {
@@ -189,21 +271,18 @@ app.get('/api/plugins', auth, async (req, res) => {
     const m = resp.match(/\(\d+\):\s*(.*)/s);
     if (m) {
       const raw = m[1].replace(/§[0-9a-fk-or]/gi, '');
-      const list = raw.split(',').map(p => p.trim()).filter(Boolean).map(name => {
-        return { name, enabled: true };
-      });
-      // Re-parse with color codes to detect disabled (§c = red)
+      const list = raw.split(',').map(p => p.trim()).filter(Boolean).map(name => ({ name, enabled: true }));
       const rawColored = m[1];
       const colored = rawColored.split(',');
       for (let i = 0; i < colored.length && i < list.length; i++) {
         if (colored[i].includes('\u00A7c')) list[i].enabled = false;
       }
-      res.json({ plugins: list });
+      res.json({ ok: true, plugins: list });
     } else {
-      res.json({ plugins: [] });
+      res.json({ ok: true, plugins: [] });
     }
   } catch (e) {
-    res.json({ plugins: [], error: e.message });
+    res.json({ ok: false, plugins: [], error: e.message });
   }
 });
 
@@ -213,15 +292,17 @@ app.post('/api/plugins/:name/toggle', auth, async (req, res) => {
   try {
     const r = await getRcon();
     const result = await r.command(`plugman ${action} ${name}`);
-    res.json({ result });
+    logAction('plugin-toggle', { name, action }, 'ok');
+    res.json({ ok: true, result });
   } catch (e) {
-    res.json({ error: e.message });
+    logAction('plugin-toggle', { name, action }, 'fail');
+    res.json({ ok: false, error: e.message });
   }
 });
 
 app.post('/api/plugins/:name/delete', auth, async (req, res) => {
   const name = req.params.name;
-  if (!name) return res.status(400).json({ error: 'Missing plugin name' });
+  if (!name) return res.status(400).json({ ok: false, error: 'Missing plugin name' });
   try {
     const r = await getRcon();
     await r.command('plugman unload ' + name);
@@ -237,54 +318,56 @@ app.post('/api/plugins/:name/delete', auth, async (req, res) => {
     });
     if (jar) {
       fs.unlinkSync(path.join(pluginsDir, jar));
+      logAction('plugin-delete', { name, jar }, 'ok');
       res.json({ ok: true, deleted: jar });
     } else {
-      res.status(404).json({ error: 'Plugin jar not found' });
+      res.status(404).json({ ok: false, error: 'Plugin jar not found' });
     }
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    logAction('plugin-delete', { name }, 'fail');
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
 app.post('/api/plugins/upload', auth, async (req, res) => {
   const name = req.query.name;
   if (!name || !/\.jar$/i.test(name) || name.includes('..') || name.includes('/') || name.includes('\\')) {
-    return res.status(400).json({ error: 'Invalid plugin filename (must be .jar)' });
+    return res.status(400).json({ ok: false, error: 'Invalid plugin filename (must be .jar)' });
   }
   const pluginsDir = path.join(DATA_DIR, 'plugins');
   if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir, { recursive: true });
   const fp = path.join(pluginsDir, name);
   try {
     fs.writeFileSync(fp, req.body);
-    // Auto-load the plugin via PlugManX
     const pluginName = name.replace(/\.jar$/i, '');
     let loadResult = '';
     try {
       const r = await getRcon();
       loadResult = await r.command(`plugman load ${pluginName}`);
     } catch (_) { loadResult = 'RCON unavailable — plugin saved but not loaded'; }
+    logAction('plugin-upload', { name }, 'ok');
     res.json({ ok: true, loaded: loadResult });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    logAction('plugin-upload', { name }, 'fail');
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// ---- Worlds ----
+// ===========================================================
+// Worlds
+// ===========================================================
 
 app.get('/api/worlds', auth, (req, res) => {
   try {
     const worlds = [];
-    for (const base of [DATA_DIR]) {
-      if (!fs.existsSync(base)) continue;
-      for (const entry of fs.readdirSync(base, { withFileTypes: true })) {
+    if (fs.existsSync(DATA_DIR)) {
+      for (const entry of fs.readdirSync(DATA_DIR, { withFileTypes: true })) {
         if (entry.isDirectory()) {
-          const wpath = path.join(base, entry.name);
+          const wpath = path.join(DATA_DIR, entry.name);
           if (fs.existsSync(path.join(wpath, 'level.dat'))) {
             let size = 0;
             try {
-              const out = require('child_process').execSync(
-                `du -sb "${wpath}" 2>/dev/null | cut -f1`, { encoding: 'utf8', timeout: 5000 }
-              );
+              const out = execSync(`du -sb "${wpath}" 2>/dev/null | cut -f1`, { encoding: 'utf8', timeout: 5000 });
               size = parseInt(out.trim()) || 0;
             } catch (_) {}
             worlds.push({ name: entry.name, path: wpath, size });
@@ -292,13 +375,15 @@ app.get('/api/worlds', auth, (req, res) => {
         }
       }
     }
-    res.json({ worlds });
+    res.json({ ok: true, worlds });
   } catch (e) {
-    res.json({ worlds: [], error: e.message });
+    res.json({ ok: false, worlds: [], error: e.message });
   }
 });
 
-// ---- Settings (server.properties) ----
+// ===========================================================
+// Settings (server.properties)
+// ===========================================================
 
 app.get('/api/settings', auth, (req, res) => {
   try {
@@ -312,9 +397,9 @@ app.get('/api/settings', auth, (req, res) => {
         if (idx > 0) settings[t.slice(0, idx)] = t.slice(idx + 1);
       }
     }
-    res.json({ settings });
+    res.json({ ok: true, settings });
   } catch (e) {
-    res.json({ settings: {}, error: e.message });
+    res.json({ ok: false, settings: {}, error: e.message });
   }
 });
 
@@ -335,39 +420,45 @@ app.put('/api/settings', auth, (req, res) => {
       return line;
     });
     fs.writeFileSync(propPath, lines.join('\n'), 'utf8');
+    logAction('settings-update', { keys: Object.keys(updates) }, 'ok');
     res.json({ ok: true });
   } catch (e) {
-    res.json({ error: e.message });
+    logAction('settings-update', {}, 'fail');
+    res.json({ ok: false, error: e.message });
   }
 });
 
-// ---- Server control ----
+// ===========================================================
+// Server control
+// ===========================================================
 
 app.post('/api/server/restart', auth, async (req, res) => {
-  // Save worlds first, then kill PID 1 so the container exits non-zero.
-  // Railway's ON_FAILURE restart policy will restart the container automatically.
   try {
     const r = await getRcon();
     await r.command('save-all');
   } catch (_) {}
+  logAction('server-restart', {}, 'ok');
   res.json({ ok: true, message: 'Server restarting...' });
   setTimeout(() => {
-    try { require('child_process').execSync('kill 1'); } catch (_) { process.exit(1); }
+    try { execSync('kill 1'); } catch (_) { process.exit(1); }
   }, 2000);
 });
 
 app.post('/api/server/stop', auth, async (req, res) => {
-  // RCON stop = clean exit (code 0). Railway will NOT auto-restart.
   try {
     const r = await getRcon();
     await r.command('stop');
+    logAction('server-stop', {}, 'ok');
     res.json({ ok: true, message: 'Server stopping...' });
   } catch (e) {
-    res.json({ error: e.message });
+    logAction('server-stop', {}, 'fail');
+    res.json({ ok: false, error: e.message });
   }
 });
 
-// ---- File Manager API ----
+// ===========================================================
+// File Manager API — reads/writes to /data, NEVER clears data
+// ===========================================================
 
 function safePath(p) {
   const resolved = path.resolve(DATA_DIR, p || '');
@@ -377,11 +468,11 @@ function safePath(p) {
 
 app.get('/api/files', auth, (req, res) => {
   const dirPath = safePath(req.query.path || '');
-  if (!dirPath) return res.status(400).json({ error: 'Invalid path' });
+  if (!dirPath) return res.status(400).json({ ok: false, error: 'Invalid path' });
   try {
-    if (!fs.existsSync(dirPath)) return res.status(404).json({ error: 'Not found' });
+    if (!fs.existsSync(dirPath)) return res.status(404).json({ ok: false, error: 'Not found' });
     const stat = fs.statSync(dirPath);
-    if (!stat.isDirectory()) return res.status(400).json({ error: 'Not a directory' });
+    if (!stat.isDirectory()) return res.status(400).json({ ok: false, error: 'Not a directory' });
     const entries = fs.readdirSync(dirPath, { withFileTypes: true }).map(e => {
       const fp = path.join(dirPath, e.name);
       let s = { size: 0, mtime: null, mode: '' };
@@ -394,44 +485,47 @@ app.get('/api/files', auth, (req, res) => {
       return { name: e.name, isDir: e.isDirectory(), size: s.size, modified: s.mtime, permissions: s.mode };
     });
     entries.sort((a, b) => (b.isDir - a.isDir) || a.name.localeCompare(b.name));
-    res.json({ path: path.relative(DATA_DIR, dirPath) || '.', entries });
+    res.json({ ok: true, path: path.relative(DATA_DIR, dirPath) || '.', entries });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
 app.get('/api/files/read', auth, (req, res) => {
   const fp = safePath(req.query.path);
-  if (!fp) return res.status(400).json({ error: 'Invalid path' });
+  if (!fp) return res.status(400).json({ ok: false, error: 'Invalid path' });
   try {
     const stat = fs.statSync(fp);
-    if (stat.size > 10 * 1024 * 1024) return res.status(400).json({ error: 'File too large to edit (>10MB)' });
+    if (stat.size > 10 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large to edit (>10MB)' });
     const content = fs.readFileSync(fp, 'utf8');
-    res.json({ content, size: stat.size });
+    res.json({ ok: true, content, size: stat.size });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
 app.put('/api/files/write', auth, (req, res) => {
   const fp = safePath(req.body.path);
-  if (!fp) return res.status(400).json({ error: 'Invalid path' });
+  if (!fp) return res.status(400).json({ ok: false, error: 'Invalid path' });
   try {
     fs.writeFileSync(fp, req.body.content, 'utf8');
+    logAction('file-write', { path: req.body.path }, 'ok');
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    logAction('file-write', { path: req.body.path }, 'fail');
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
 app.post('/api/files/mkdir', auth, (req, res) => {
   const fp = safePath(req.body.path);
-  if (!fp) return res.status(400).json({ error: 'Invalid path' });
+  if (!fp) return res.status(400).json({ ok: false, error: 'Invalid path' });
   try {
     fs.mkdirSync(fp, { recursive: true });
+    logAction('file-mkdir', { path: req.body.path }, 'ok');
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
@@ -439,34 +533,38 @@ app.post('/api/files/upload', auth, (req, res) => {
   const dir = safePath(req.query.path || '/');
   const name = req.query.name;
   if (!dir || !name || name.includes('..') || name.includes('/') || name.includes('\\')) {
-    return res.status(400).json({ error: 'Invalid path or filename' });
+    return res.status(400).json({ ok: false, error: 'Invalid path or filename' });
   }
   const fp = path.join(dir, name);
-  if (!fp.startsWith(DATA_DIR)) return res.status(400).json({ error: 'Invalid path' });
+  if (!fp.startsWith(DATA_DIR)) return res.status(400).json({ ok: false, error: 'Invalid path' });
   try {
     fs.writeFileSync(fp, req.body);
-    res.json({ ok: true });
+    logAction('file-upload', { path: req.query.path, name }, 'ok');
+    res.json({ ok: true, size: req.body.length });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    logAction('file-upload', { path: req.query.path, name }, 'fail');
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
 app.delete('/api/files', auth, (req, res) => {
   const fp = safePath(req.query.path);
-  if (!fp || fp === DATA_DIR) return res.status(400).json({ error: 'Invalid path' });
+  if (!fp || fp === DATA_DIR) return res.status(400).json({ ok: false, error: 'Invalid path' });
   try {
     const stat = fs.statSync(fp);
     if (stat.isDirectory()) fs.rmSync(fp, { recursive: true, force: true });
     else fs.unlinkSync(fp);
+    logAction('file-delete', { path: req.query.path }, 'ok');
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    logAction('file-delete', { path: req.query.path }, 'fail');
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
 app.get('/api/files/download', auth, (req, res) => {
   const fp = safePath(req.query.path);
-  if (!fp) return res.status(400).json({ error: 'Invalid path' });
+  if (!fp) return res.status(400).json({ ok: false, error: 'Invalid path' });
   try {
     const stat = fs.statSync(fp);
     if (stat.isDirectory()) {
@@ -477,7 +575,7 @@ app.get('/api/files/download', auth, (req, res) => {
       tar.stdout.pipe(res);
       tar.stderr.on('data', () => {});
       tar.on('error', (err) => {
-        if (!res.headersSent) res.status(500).json({ error: err.message });
+        if (!res.headersSent) res.status(500).json({ ok: false, error: err.message });
       });
       tar.on('close', (code) => {
         if (code !== 0 && !res.headersSent) res.status(500).end();
@@ -486,95 +584,391 @@ app.get('/api/files/download', auth, (req, res) => {
       res.download(fp);
     }
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
 app.post('/api/files/rename', auth, (req, res) => {
-  const oldPath = safePath(req.body.oldPath);
-  const newPath = safePath(req.body.newPath);
-  if (!oldPath || !newPath || oldPath === DATA_DIR || newPath === DATA_DIR) {
-    return res.status(400).json({ error: 'Invalid path' });
+  const oldP = safePath(req.body.oldPath);
+  const newP = safePath(req.body.newPath);
+  if (!oldP || !newP || oldP === DATA_DIR || newP === DATA_DIR) {
+    return res.status(400).json({ ok: false, error: 'Invalid path' });
   }
   try {
-    fs.renameSync(oldPath, newPath);
+    fs.renameSync(oldP, newP);
+    logAction('file-rename', { from: req.body.oldPath, to: req.body.newPath }, 'ok');
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
+// Extract — async via job system for large archives
 app.post('/api/files/extract', auth, (req, res) => {
   const fp = safePath(req.body.path);
-  if (!fp) return res.status(400).json({ error: 'Invalid path' });
+  if (!fp) return res.status(400).json({ ok: false, error: 'Invalid path' });
+  if (!fs.existsSync(fp)) return res.status(404).json({ ok: false, error: 'File not found' });
+
   const dir = path.dirname(fp);
   const base = path.basename(fp);
-  const { execSync } = require('child_process');
-  try {
-    if (/\.zip$/i.test(base)) {
-      execSync(`unzip -o "${fp}" -d "${dir}"`, { timeout: 120000 });
-    } else if (/\.tar\.gz$|\.tgz$/i.test(base)) {
-      execSync(`tar -xzf "${fp}" -C "${dir}"`, { timeout: 120000 });
-    } else if (/\.tar\.bz2$/i.test(base)) {
-      execSync(`tar -xjf "${fp}" -C "${dir}"`, { timeout: 120000 });
-    } else if (/\.tar$/i.test(base)) {
-      execSync(`tar -xf "${fp}" -C "${dir}"`, { timeout: 120000 });
-    } else if (/\.gz$/i.test(base)) {
-      execSync(`gunzip -k "${fp}"`, { timeout: 120000 });
-    } else {
-      return res.status(400).json({ error: 'Unsupported archive format' });
+  const job = createJob('extract', base);
+
+  res.json({ ok: true, jobId: job.id });
+
+  // Run extraction in background
+  setImmediate(() => {
+    try {
+      let cmd;
+      if (/\.zip$/i.test(base)) {
+        cmd = `unzip -o "${fp}" -d "${dir}"`;
+      } else if (/\.tar\.gz$|\.tgz$/i.test(base)) {
+        cmd = `tar -xzf "${fp}" -C "${dir}"`;
+      } else if (/\.tar\.bz2$/i.test(base)) {
+        cmd = `tar -xjf "${fp}" -C "${dir}"`;
+      } else if (/\.tar$/i.test(base)) {
+        cmd = `tar -xf "${fp}" -C "${dir}"`;
+      } else if (/\.gz$/i.test(base)) {
+        cmd = `gunzip -k "${fp}"`;
+      } else if (/\.rar$/i.test(base)) {
+        cmd = `bsdtar xf "${fp}" -C "${dir}"`;
+      } else {
+        job.status = 'error';
+        job.error = 'Unsupported archive format';
+        logAction('file-extract', { path: req.body.path }, 'fail');
+        return;
+      }
+      execSync(cmd, { timeout: 300000 });
+      job.status = 'done';
+      job.progress = 100;
+      logAction('file-extract', { path: req.body.path }, 'ok');
+    } catch (e) {
+      job.status = 'error';
+      job.error = e.message;
+      logAction('file-extract', { path: req.body.path }, 'fail');
     }
+  });
+});
+
+// ===========================================================
+// Jobs API — poll long-running task status
+// ===========================================================
+
+app.get('/api/jobs/:id', auth, (req, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job) return res.status(404).json({ ok: false, error: 'Job not found' });
+  res.json({ ok: true, job });
+});
+
+// ===========================================================
+// Backups API — create/list/download/restore/delete backups
+// ===========================================================
+
+app.get('/api/backups', auth, (req, res) => {
+  try {
+    if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+    const files = fs.readdirSync(BACKUPS_DIR).filter(f => f.endsWith('.tar.gz'));
+    const backups = files.map(f => {
+      const fp = path.join(BACKUPS_DIR, f);
+      const st = fs.statSync(fp);
+      return { name: f, size: st.size, created: st.mtime };
+    });
+    backups.sort((a, b) => new Date(b.created) - new Date(a.created));
+    res.json({ ok: true, backups });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/backups', auth, (req, res) => {
+  const label = String(req.body.label || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'backup';
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const filename = `${label}_${timestamp}.tar.gz`;
+  const job = createJob('backup', filename);
+
+  if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+
+  res.json({ ok: true, jobId: job.id, filename });
+
+  // Run backup in background — backs up plugins, configs, worlds
+  setImmediate(() => {
+    const outPath = path.join(BACKUPS_DIR, filename);
+    // Include key directories that exist
+    const includes = ['plugins', 'server.properties', 'bukkit.yml', 'spigot.yml', 'paper.yml', 'ops.json', 'whitelist.json', 'banned-players.json', 'banned-ips.json'];
+    // Also include world directories (folders with level.dat)
+    try {
+      for (const entry of fs.readdirSync(DATA_DIR, { withFileTypes: true })) {
+        if (entry.isDirectory() && fs.existsSync(path.join(DATA_DIR, entry.name, 'level.dat'))) {
+          includes.push(entry.name);
+        }
+      }
+    } catch (_) {}
+
+    const existing = includes.filter(f => fs.existsSync(path.join(DATA_DIR, f)));
+    if (existing.length === 0) {
+      job.status = 'error';
+      job.error = 'Nothing to back up';
+      return;
+    }
+
+    try {
+      const args = ['-czf', outPath, '-C', DATA_DIR, ...existing];
+      execSync(`tar ${args.map(a => `"${a}"`).join(' ')}`, { timeout: 600000 });
+      job.status = 'done';
+      job.progress = 100;
+      logAction('backup-create', { filename }, 'ok');
+    } catch (e) {
+      job.status = 'error';
+      job.error = e.message;
+      logAction('backup-create', { filename }, 'fail');
+      // Clean up partial file
+      try { fs.unlinkSync(outPath); } catch (_) {}
+    }
+  });
+});
+
+app.get('/api/backups/:name/download', auth, (req, res) => {
+  const name = req.params.name;
+  if (!name || name.includes('..') || name.includes('/')) {
+    return res.status(400).json({ ok: false, error: 'Invalid name' });
+  }
+  const fp = path.join(BACKUPS_DIR, name);
+  if (!fp.startsWith(BACKUPS_DIR) || !fs.existsSync(fp)) {
+    return res.status(404).json({ ok: false, error: 'Backup not found' });
+  }
+  res.download(fp);
+});
+
+app.post('/api/backups/:name/restore', auth, (req, res) => {
+  const name = req.params.name;
+  if (!name || name.includes('..') || name.includes('/')) {
+    return res.status(400).json({ ok: false, error: 'Invalid name' });
+  }
+  const fp = path.join(BACKUPS_DIR, name);
+  if (!fp.startsWith(BACKUPS_DIR) || !fs.existsSync(fp)) {
+    return res.status(404).json({ ok: false, error: 'Backup not found' });
+  }
+  const job = createJob('restore', name);
+  res.json({ ok: true, jobId: job.id });
+
+  setImmediate(() => {
+    try {
+      execSync(`tar -xzf "${fp}" -C "${DATA_DIR}"`, { timeout: 600000 });
+      job.status = 'done';
+      job.progress = 100;
+      logAction('backup-restore', { name }, 'ok');
+    } catch (e) {
+      job.status = 'error';
+      job.error = e.message;
+      logAction('backup-restore', { name }, 'fail');
+    }
+  });
+});
+
+app.delete('/api/backups/:name', auth, (req, res) => {
+  const name = req.params.name;
+  if (!name || name.includes('..') || name.includes('/')) {
+    return res.status(400).json({ ok: false, error: 'Invalid name' });
+  }
+  const fp = path.join(BACKUPS_DIR, name);
+  if (!fp.startsWith(BACKUPS_DIR) || !fs.existsSync(fp)) {
+    return res.status(404).json({ ok: false, error: 'Backup not found' });
+  }
+  try {
+    fs.unlinkSync(fp);
+    logAction('backup-delete', { name }, 'ok');
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// ---- WebSocket upgrade ----
+// ===========================================================
+// Staff API — ops.json + LuckPerms groups via RCON
+// ===========================================================
+
+app.get('/api/staff', auth, async (req, res) => {
+  const staff = [];
+  // Read ops.json
+  try {
+    const opsPath = path.join(DATA_DIR, 'ops.json');
+    if (fs.existsSync(opsPath)) {
+      const ops = JSON.parse(fs.readFileSync(opsPath, 'utf8'));
+      for (const op of ops) {
+        staff.push({ name: op.name, uuid: op.uuid, level: op.level, source: 'ops' });
+      }
+    }
+  } catch (_) {}
+  // Try LuckPerms via RCON
+  try {
+    const r = await getRcon();
+    // Get groups from LuckPerms
+    for (const s of staff) {
+      try {
+        const resp = await r.command(`lp user ${s.name} info`);
+        const groupMatch = resp.match(/Primary Group:\s*(\S+)/i);
+        if (groupMatch) s.group = groupMatch[1];
+      } catch (_) {}
+    }
+  } catch (_) {}
+  res.json({ ok: true, staff });
+});
+
+app.get('/api/staff/groups', auth, async (req, res) => {
+  try {
+    const r = await getRcon();
+    const resp = await r.command('lp listgroups');
+    // Parse group names from LuckPerms output
+    const groups = [];
+    const lines = resp.replace(/§[0-9a-fk-or]/gi, '').split('\n');
+    for (const line of lines) {
+      const m = line.match(/- (\S+)/);
+      if (m) groups.push(m[1]);
+    }
+    res.json({ ok: true, groups });
+  } catch (e) {
+    res.json({ ok: false, groups: [], error: e.message });
+  }
+});
+
+app.post('/api/staff/op', auth, async (req, res) => {
+  const { player, action } = req.body;
+  if (!player || !['op', 'deop'].includes(action)) {
+    return res.status(400).json({ ok: false, error: 'Invalid request' });
+  }
+  try {
+    const r = await getRcon();
+    const result = await r.command(`${action} ${player}`);
+    logAction('staff-op', { player, action }, 'ok');
+    res.json({ ok: true, result });
+  } catch (e) {
+    logAction('staff-op', { player, action }, 'fail');
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/staff/group', auth, async (req, res) => {
+  const { player, group } = req.body;
+  if (!player || !group) {
+    return res.status(400).json({ ok: false, error: 'Missing player or group' });
+  }
+  try {
+    const r = await getRcon();
+    const result = await r.command(`lp user ${player} parent set ${group}`);
+    logAction('staff-group', { player, group }, 'ok');
+    res.json({ ok: true, result });
+  } catch (e) {
+    logAction('staff-group', { player, group }, 'fail');
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// ===========================================================
+// Action logs API
+// ===========================================================
+
+app.get('/api/actions', auth, (req, res) => {
+  try {
+    if (!fs.existsSync(PANEL_LOG)) return res.json({ ok: true, actions: [] });
+    const content = fs.readFileSync(PANEL_LOG, 'utf8');
+    const lines = content.trim().split('\n').filter(Boolean);
+    const last200 = lines.slice(-200);
+    const actions = [];
+    for (const line of last200) {
+      try { actions.push(JSON.parse(line)); } catch (_) {}
+    }
+    actions.reverse();
+    res.json({ ok: true, actions });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ===========================================================
+// Centralized error handler — catches unhandled route errors
+// ===========================================================
+
+app.use((err, req, res, _next) => {
+  console.error('Unhandled error:', err.message);
+  logAction('error', { path: req.path, error: err.message }, 'fail');
+  if (!res.headersSent) {
+    res.status(500).json({ ok: false, error: 'Internal server error' });
+  }
+});
+
+// ===========================================================
+// SPA fallback — serve React index.html for all non-API routes
+// ===========================================================
+
+app.get('*', (req, res) => {
+  const indexPath = path.join(staticDir, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Panel not built. Run: cd panel && npm run build');
+  }
+});
+
+// ===========================================================
+// WebSocket — console log streaming + RCON command execution
+// ===========================================================
 
 server.on('upgrade', (req, socket, head) => {
-  if (req.url !== '/ws') { socket.destroy(); return; }
-  if (!getSession(req)) { socket.destroy(); return; }
-  wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req));
-});
-
-wss.on('connection', (ws) => {
-  let tail = null;
-  try {
-    tail = spawn('tail', ['-n', '200', '-f', LOG_FILE]);
-  } catch (_) {
-    ws.send(JSON.stringify({ type: 'error', data: 'Cannot read log file' }));
-    return;
-  }
-
-  tail.stdout.on('data', d => {
-    const text = d.toString();
-    const filtered = text.split('\n').filter(l => !l.includes('Rcon issued server command')).join('\n');
-    if (filtered.trim() && ws.readyState === 1) ws.send(JSON.stringify({ type: 'log', data: filtered }));
-  });
-  tail.stderr.on('data', d => {
-    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'error', data: d.toString() }));
-  });
-
-  ws.on('message', async (msg) => {
-    try {
-      const parsed = JSON.parse(msg);
-      if (parsed.type === 'command' && parsed.data) {
-        const r = await getRcon();
-        const result = await r.command(String(parsed.data));
-        ws.send(JSON.stringify({ type: 'response', data: result }));
-      }
-    } catch (e) {
-      ws.send(JSON.stringify({ type: 'error', data: e.message }));
+  if (req.url === '/ws') {
+    const token = parseCookies(req.headers.cookie).session;
+    if (!token || !sessions.has(token)) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
     }
-  });
-
-  ws.on('close', () => { if (tail) tail.kill(); });
-  tail.on('error', () => {});
+    wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req));
+  } else {
+    socket.destroy();
+  }
 });
 
-// ---- Start ----
+wss.on('connection', ws => {
+  let tail = null;
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`Panel running on port ${PORT}`);
+  // Start tailing latest.log
+  const startTail = () => {
+    try {
+      tail = spawn('tail', ['-n', '200', '-f', LOG_FILE]);
+      tail.stdout.on('data', chunk => {
+        if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'log', data: chunk.toString() }));
+      });
+      tail.stderr.on('data', () => {});
+      tail.on('error', () => {});
+      tail.on('close', () => { tail = null; });
+    } catch (_) {}
+  };
+
+  startTail();
+
+  ws.on('message', async msg => {
+    try {
+      const data = JSON.parse(msg);
+      if (data.type === 'command' && data.command) {
+        const cmd = String(data.command).trim();
+        try {
+          const r = await getRcon();
+          const result = await r.command(cmd);
+          ws.send(JSON.stringify({ type: 'response', command: cmd, result }));
+        } catch (e) {
+          ws.send(JSON.stringify({ type: 'error', command: cmd, error: e.message }));
+        }
+      }
+    } catch (_) {}
+  });
+
+  ws.on('close', () => {
+    if (tail) { tail.kill(); tail = null; }
+  });
+});
+
+// ===========================================================
+// Start server
+// ===========================================================
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Panel running on port ${PORT} — serving from ${staticDir}`);
 });

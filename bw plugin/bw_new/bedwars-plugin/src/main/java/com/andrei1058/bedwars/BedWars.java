@@ -574,13 +574,13 @@ public class BedWars extends JavaPlugin {
     }
 
     private void registerDelayedCommands() {
-        if (!nms.isBukkitCommandRegistered("shout")) {
-            nms.registerCommand("shout", new ShoutCommand("shout"));
-        }
+        // Always force-register /shout so BedWars handles it instead of EssentialsX
+        nms.registerCommand("shout", new ShoutCommand("shout"));
         nms.registerCommand("rejoin", new RejoinCommand("rejoin"));
         if (!(nms.isBukkitCommandRegistered("leave") && getServerType() == ServerType.BUNGEE)) {
             nms.registerCommand("leave", new LeaveCommand("leave"));
         }
+        nms.registerCommand("l", new LeaveCommand("l"));
         if (getServerType() != ServerType.BUNGEE && config.getBoolean(ConfigPath.GENERAL_ENABLE_PARTY_CMD)) {
             Bukkit.getLogger().info("Registering /party command..");
             nms.registerCommand("party", new PartyCommand("party"));

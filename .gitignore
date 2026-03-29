@@ -37,3 +37,8 @@ fastlogin-config/
 
 # Plugin JARs — managed via panel upload, not git
 plugins-extra/
+
+# Panel build artifacts and deps
+panel/node_modules/
+panel/dist/
+panel/server-control-panel-main/

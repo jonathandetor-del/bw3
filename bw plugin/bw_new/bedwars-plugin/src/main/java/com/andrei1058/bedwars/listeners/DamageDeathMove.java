@@ -73,6 +73,9 @@ public class DamageDeathMove implements Listener {
     private final double tntDamageSelf;
     private final double tntDamageTeammates;
     private final double tntDamageOthers;
+    private final double tntJumpHorizontal;
+    private final double tntJumpVertical;
+    private final double tntJumpBoostMultiplier;
 
     public DamageDeathMove() {
         this.tntJumpBarycenterAlterationInY = config.getYml().getDouble(ConfigPath.GENERAL_TNT_JUMP_BARYCENTER_IN_Y);
@@ -81,6 +84,9 @@ public class DamageDeathMove implements Listener {
         this.tntDamageSelf = config.getYml().getDouble(ConfigPath.GENERAL_TNT_JUMP_DAMAGE_SELF);
         this.tntDamageTeammates = config.getYml().getDouble(ConfigPath.GENERAL_TNT_JUMP_DAMAGE_TEAMMATES);
         this.tntDamageOthers = config.getYml().getDouble(ConfigPath.GENERAL_TNT_JUMP_DAMAGE_OTHERS);
+        this.tntJumpHorizontal = config.getYml().getDouble(ConfigPath.GENERAL_TNT_JUMP_HORIZONTAL);
+        this.tntJumpVertical = config.getYml().getDouble(ConfigPath.GENERAL_TNT_JUMP_VERTICAL);
+        this.tntJumpBoostMultiplier = config.getYml().getDouble(ConfigPath.GENERAL_TNT_JUMP_BOOST_MULTIPLIER);
     }
 
     @EventHandler
@@ -191,14 +197,16 @@ public class DamageDeathMove implements Listener {
                                 if (tntDamageSelf > -1) {
                                     e.setDamage(tntDamageSelf);
                                 }
-                                // tnt jump. credits to feargames.it
+                                // Hypixel-style TNT jump: explosion velocity stacks with player's current velocity
                                 LivingEntity damaged = (LivingEntity) e.getEntity();
-                                Vector distance = damaged.getLocation().subtract(0, tntJumpBarycenterAlterationInY, 0).toVector().subtract(tnt.getLocation().toVector());
-                                Vector direction = distance.clone().normalize();
-                                double force = ((tnt.getYield() * tnt.getYield()) / (tntJumpStrengthReductionConstant + distance.length()));
-                                Vector resultingForce = direction.clone().multiply(force);
-                                resultingForce.setY(resultingForce.getY() / (distance.length() + tntJumpYAxisReductionConstant));
-                                damaged.setVelocity(resultingForce);
+                                Vector direction = damaged.getLocation().toVector().subtract(tnt.getLocation().toVector()).normalize();
+                                double boost = !damaged.isOnGround() ? tntJumpBoostMultiplier : 1.0;
+                                double hVel = tntJumpHorizontal * boost;
+                                double vVel = tntJumpVertical * boost;
+                                // Stack with existing velocity (jump momentum) instead of replacing it
+                                Vector current = damaged.getVelocity();
+                                Vector explosionForce = new Vector(direction.getX() * hVel, vVel, direction.getZ() * hVel);
+                                damaged.setVelocity(current.add(explosionForce));
                             } else {
                                 ITeam currentTeam = a.getTeam(p);
                                 ITeam damagerTeam = a.getTeam(damager);

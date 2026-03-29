@@ -9,7 +9,7 @@ LABEL maintainer="BedWars Server" \
 
 # Environment — Railway injects PORT at runtime
 ENV MINECRAFT_PORT=25565 \
-    MEMORY="16G" \
+    MEMORY="20G" \
     TZ=Asia/Singapore
 
 # FlamePaper is a performance-focused 1.8.8 Paper fork.
@@ -90,9 +90,13 @@ COPY nginx.conf /etc/nginx/nginx.conf
 COPY --chown=minecraft:minecraft console.sh /server/console.sh
 RUN chmod +x /server/console.sh
 
-# Copy and build server management panel
+# Copy and build server management panel (React frontend + Express backend)
 COPY --chown=minecraft:minecraft panel/ /server/panel/
-RUN cd /server/panel && npm install --production && chown -R minecraft:minecraft /server/panel
+RUN cd /server/panel && \
+    npm install && \
+    npm run build && \
+    npm prune --production && \
+    chown -R minecraft:minecraft /server/panel
 
 RUN chmod +x /server/start.sh
 

@@ -11,6 +11,7 @@ import org.bukkit.entity.Fireball;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockIgniteEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
@@ -28,6 +29,8 @@ public class FireballListener implements Listener {
     private final boolean fireballMakeFire;
     private final double fireballHorizontal;
     private final double fireballVertical;
+    private final double fireballJumpHorizontal;
+    private final double fireballJumpVertical;
 
     private final double damageSelf;
     private final double damageEnemy;
@@ -36,8 +39,10 @@ public class FireballListener implements Listener {
     public FireballListener() {
         this.fireballExplosionSize = config.getYml().getDouble(ConfigPath.GENERAL_FIREBALL_EXPLOSION_SIZE);
         this.fireballMakeFire = config.getYml().getBoolean(ConfigPath.GENERAL_FIREBALL_MAKE_FIRE);
-        this.fireballHorizontal = config.getYml().getDouble(ConfigPath.GENERAL_FIREBALL_KNOCKBACK_HORIZONTAL) * -1;
+        this.fireballHorizontal = config.getYml().getDouble(ConfigPath.GENERAL_FIREBALL_KNOCKBACK_HORIZONTAL);
         this.fireballVertical = config.getYml().getDouble(ConfigPath.GENERAL_FIREBALL_KNOCKBACK_VERTICAL);
+        this.fireballJumpHorizontal = config.getYml().getDouble(ConfigPath.GENERAL_FIREBALL_JUMP_HORIZONTAL);
+        this.fireballJumpVertical = config.getYml().getDouble(ConfigPath.GENERAL_FIREBALL_JUMP_VERTICAL);
 
         this.damageSelf = config.getYml().getDouble(ConfigPath.GENERAL_FIREBALL_DAMAGE_SELF);
         this.damageEnemy = config.getYml().getDouble(ConfigPath.GENERAL_FIREBALL_DAMAGE_ENEMY);
@@ -69,16 +74,26 @@ public class FireballListener implements Listener {
 
 
             Vector playerVector = player.getLocation().toVector();
-            Vector normalizedVector = vector.subtract(playerVector).normalize();
-            Vector horizontalVector = normalizedVector.multiply(fireballHorizontal);
-            double y = normalizedVector.getY();
-            if(y < 0 ) y += 1.5;
-            if(y <= 0.5) {
-                y = fireballVertical*1.5; // kb for not jumping
+            // Direction FROM fireball TO player (pushes player away from explosion)
+            Vector direction = playerVector.subtract(vector.clone()).normalize();
+            double distance = player.getLocation().distance(location);
+            // Distance-based falloff: closer = stronger KB, Hypixel-style curve
+            double falloff = Math.max(0.2, 1.0 - (distance / (fireballExplosionSize * 2.5)));
+
+            boolean isSelf = player.equals(source);
+            double hKB, vKB;
+            if (isSelf) {
+                // Self-fireball jump: separate config for bigger self-launches
+                hKB = fireballJumpHorizontal * falloff;
+                vKB = fireballJumpVertical;
             } else {
-                y = y*fireballVertical*1.5; // kb for jumping
+                // Enemy knockback: distance-based falloff
+                hKB = fireballHorizontal * falloff;
+                vKB = fireballVertical * 0.8 * falloff;
             }
-            player.setVelocity(horizontalVector.setY(y));
+            Vector velocity = direction.multiply(hKB);
+            velocity.setY(vKB);
+            player.setVelocity(velocity);
 
             LastHit lh = LastHit.getLastHit(player);
             if (lh != null) {
@@ -125,6 +140,15 @@ public class FireballListener implements Listener {
         if(Arena.getArenaByPlayer(player) == null) return;
 
         e.setFire(fireballMakeFire);
+    }
+
+    @EventHandler
+    public void onBlockIgnite(BlockIgniteEvent e) {
+        if (e.getCause() == BlockIgniteEvent.IgniteCause.FIREBALL) {
+            if (Arena.getArenaByIdentifier(e.getBlock().getWorld().getName()) != null) {
+                e.setCancelled(true);
+            }
+        }
     }
 
 }

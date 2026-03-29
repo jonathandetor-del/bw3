@@ -109,11 +109,14 @@ public class MainConfig extends ConfigManager {
 
         // tnt jump category
         yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_BARYCENTER_IN_Y, 0.5);
-        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_STRENGTH_REDUCTION, 5);
-        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_Y_REDUCTION, 2);
-        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_DAMAGE_SELF, 1);
-        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_DAMAGE_TEAMMATES, 5);
-        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_DAMAGE_OTHERS, 10);
+        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_STRENGTH_REDUCTION, 2.5);
+        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_Y_REDUCTION, 1.2);
+        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_DAMAGE_SELF, 0);
+        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_DAMAGE_TEAMMATES, 0);
+        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_DAMAGE_OTHERS, 5);
+        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_HORIZONTAL, 1.5);
+        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_VERTICAL, 1.3);
+        yml.addDefault(ConfigPath.GENERAL_TNT_JUMP_BOOST_MULTIPLIER, 1.15);
 
         // tnd block blast resistance
         // on 1.8.8 it has to be around 69, on 1.20 and 1.18 it works fine with 12 (tested)
@@ -123,18 +126,20 @@ public class MainConfig extends ConfigManager {
 
         // tnt prime settings
         yml.addDefault(ConfigPath.GENERAL_TNT_AUTO_IGNITE, true);
-        yml.addDefault(ConfigPath.GENERAL_TNT_FUSE_TICKS, 45);
+        yml.addDefault(ConfigPath.GENERAL_TNT_FUSE_TICKS, 60);
 
         // fireball category
-        yml.addDefault(ConfigPath.GENERAL_FIREBALL_EXPLOSION_SIZE, 3);
+        yml.addDefault(ConfigPath.GENERAL_FIREBALL_EXPLOSION_SIZE, 2.9);
         yml.addDefault(ConfigPath.GENERAL_FIREBALL_SPEED_MULTIPLIER, 10);
         yml.addDefault(ConfigPath.GENERAL_FIREBALL_MAKE_FIRE, false);
-        yml.addDefault(ConfigPath.GENERAL_FIREBALL_KNOCKBACK_HORIZONTAL, 1.0);
-        yml.addDefault(ConfigPath.GENERAL_FIREBALL_KNOCKBACK_VERTICAL, 0.65);
-        yml.addDefault(ConfigPath.GENERAL_FIREBALL_COOLDOWN, 0.5);
-        yml.addDefault(ConfigPath.GENERAL_FIREBALL_DAMAGE_SELF, 2.0);
-        yml.addDefault(ConfigPath.GENERAL_FIREBALL_DAMAGE_ENEMY, 2.0);
+        yml.addDefault(ConfigPath.GENERAL_FIREBALL_KNOCKBACK_HORIZONTAL, 0.9);
+        yml.addDefault(ConfigPath.GENERAL_FIREBALL_KNOCKBACK_VERTICAL, 0.45);
+        yml.addDefault(ConfigPath.GENERAL_FIREBALL_COOLDOWN, 0.25);
+        yml.addDefault(ConfigPath.GENERAL_FIREBALL_DAMAGE_SELF, 0.0);
+        yml.addDefault(ConfigPath.GENERAL_FIREBALL_DAMAGE_ENEMY, 2.5);
         yml.addDefault(ConfigPath.GENERAL_FIREBALL_DAMAGE_TEAMMATES, 0.0);
+        yml.addDefault(ConfigPath.GENERAL_FIREBALL_JUMP_HORIZONTAL, 1.7);
+        yml.addDefault(ConfigPath.GENERAL_FIREBALL_JUMP_VERTICAL, 1.0);
         //
         yml.addDefault("database.enable", false);
         yml.addDefault("database.host", "localhost");
