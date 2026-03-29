@@ -141,7 +141,7 @@ app.post('/api/login', (req, res) => {
     const token = crypto.randomBytes(32).toString('hex');
     sessions.set(token, { username, created: Date.now() });
     saveSessions();
-    res.setHeader('Set-Cookie', `session=${token}; Path=/; HttpOnly; SameSite=Strict`);
+    res.setHeader('Set-Cookie', `session=${token}; Path=/; HttpOnly; SameSite=Lax; Secure`);
     logAction('login', { username }, 'ok');
     return res.json({ ok: true });
   }
