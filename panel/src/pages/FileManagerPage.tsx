@@ -72,11 +72,13 @@ function formatSize(bytes: number) {
 export default function FileManagerPage() {
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const [currentPath, setCurrentPath] = useState("/");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [editDialog, setEditDialog] = useState<{ open: boolean; filePath: string; fileName: string; content: string; saving: boolean }>({ open: false, filePath: "", fileName: "", content: "", saving: false });
   const [renameDialog, setRenameDialog] = useState<{ open: boolean; oldName: string; newName: string; saving: boolean }>({ open: false, oldName: "", newName: "", saving: false });
+  const [moveDialog, setMoveDialog] = useState<{ open: boolean; name: string; destination: string; saving: boolean }>({ open: false, name: "", destination: "/", saving: false });
   const [createDialog, setCreateDialog] = useState<{ open: boolean; type: "file" | "folder"; name: string; saving: boolean }>({ open: false, type: "file", name: "", saving: false });
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; name: string; saving: boolean }>({ open: false, name: "", saving: false });
 
@@ -152,6 +154,19 @@ export default function FileManagerPage() {
     }
   };
 
+  const handleMove = async () => {
+    setMoveDialog(prev => ({ ...prev, saving: true }));
+    try {
+      await api.moveFile(fullPath(moveDialog.name), moveDialog.destination);
+      toast.success("Moved");
+      setMoveDialog({ open: false, name: "", destination: "/", saving: false });
+      invalidate();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Move failed");
+      setMoveDialog(prev => ({ ...prev, saving: false }));
+    }
+  };
+
   const handleCreate = async () => {
     setCreateDialog(prev => ({ ...prev, saving: true }));
     try {
@@ -211,6 +226,47 @@ export default function FileManagerPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleUploadFolder = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+
+    const dirs = new Set<string>();
+    for (const file of Array.from(files)) {
+      const rel = file.webkitRelativePath || file.name;
+      const parts = rel.split('/').filter(Boolean);
+      for (let i = 1; i < parts.length; i++) {
+        dirs.add(parts.slice(0, i).join('/'));
+      }
+    }
+
+    // Create parent directories first so nested uploads succeed.
+    for (const dir of Array.from(dirs).sort((a, b) => a.split('/').length - b.split('/').length)) {
+      try {
+        await api.createDir(fullPath(dir));
+      } catch (_) {}
+    }
+
+    let successCount = 0;
+    for (const file of Array.from(files)) {
+      const rel = file.webkitRelativePath || file.name;
+      const parts = rel.split('/').filter(Boolean);
+      const fileName = parts[parts.length - 1];
+      const relativeDir = parts.slice(0, -1).join('/');
+      const targetDir = relativeDir ? fullPath(relativeDir) : currentPath;
+      try {
+        const buf = await file.arrayBuffer();
+        await api.uploadFile(targetDir, fileName, buf);
+        successCount += 1;
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : `Upload failed: ${fileName}`);
+      }
+    }
+
+    toast.success(`Uploaded ${successCount} file(s) from folder`);
+    invalidate();
+    if (folderInputRef.current) folderInputRef.current.value = "";
+  };
+
   const handleExtract = async (name: string) => {
     try {
       const data = await api.extractFile(fullPath(name));
@@ -246,7 +302,20 @@ export default function FileManagerPage() {
           <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-1" /> Upload
           </Button>
+          <Button variant="outline" size="sm" onClick={() => folderInputRef.current?.click()}>
+            <FolderOpen className="h-4 w-4 mr-1" /> Upload Folder
+          </Button>
           <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleUpload} />
+          <input
+            ref={folderInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={handleUploadFolder}
+            // Non-standard but widely supported for folder picking.
+            webkitdirectory=""
+            directory=""
+          />
           {selectedFiles.length > 0 && (
             <Button variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={handleBulkDelete}>
               <Trash2 className="h-4 w-4 mr-1" /> Delete ({selectedFiles.length})
@@ -344,6 +413,9 @@ export default function FileManagerPage() {
                   )}
                   <DropdownMenuItem onClick={() => setRenameDialog({ open: true, oldName: item.name, newName: item.name, saving: false })}>
                     <Pencil className="h-4 w-4 mr-2" /> Rename
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setMoveDialog({ open: true, name: item.name, destination: currentPath, saving: false })}>
+                    <FolderOpen className="h-4 w-4 mr-2" /> Move
                   </DropdownMenuItem>
                   {!item.isDir && (
                     <DropdownMenuItem asChild>
@@ -443,6 +515,31 @@ export default function FileManagerPage() {
             <Button className="bg-primary text-primary-foreground" onClick={handleCreate} disabled={createDialog.saving}>
               {createDialog.saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move Dialog */}
+      <Dialog open={moveDialog.open} onOpenChange={(open) => setMoveDialog((prev) => ({ ...prev, open }))}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Move "{moveDialog.name}"</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Enter destination directory path (example: /plugins or /world/maps).
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={moveDialog.destination}
+            onChange={(e) => setMoveDialog((prev) => ({ ...prev, destination: e.target.value }))}
+            className="bg-muted border-border"
+            placeholder="/"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveDialog((prev) => ({ ...prev, open: false }))}>Cancel</Button>
+            <Button className="bg-primary text-primary-foreground" onClick={handleMove} disabled={moveDialog.saving}>
+              {moveDialog.saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Move
             </Button>
           </DialogFooter>
         </DialogContent>

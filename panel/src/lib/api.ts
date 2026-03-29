@@ -85,6 +85,12 @@ export const api = {
       body: data,
     }).then(r => r.json()),
 
+  downloadPlugin: (url: string, name?: string) =>
+    request<{ ok: boolean; name: string; loaded: string }>('/plugins/download', {
+      method: 'POST',
+      body: JSON.stringify({ url, name }),
+    }),
+
   // Worlds
   getWorlds: () =>
     request<{ ok: boolean; worlds: { name: string; path: string; size: number }[] }>('/worlds'),
@@ -146,6 +152,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ oldPath, newPath }),
     }),
+
+  moveFile: (oldPath: string, targetDir: string) => {
+    const trimmedTarget = targetDir.trim();
+    const normalizedTarget = trimmedTarget === '' ? '/' : (trimmedTarget.startsWith('/') ? trimmedTarget : `/${trimmedTarget}`);
+    const baseName = oldPath.split('/').filter(Boolean).pop() || '';
+    const destination = normalizedTarget === '/' ? `/${baseName}` : `${normalizedTarget}/${baseName}`;
+    return request<{ ok: boolean }>('/files/rename', {
+      method: 'POST',
+      body: JSON.stringify({ oldPath, newPath: destination }),
+    });
+  },
 
   extractFile: (filePath: string) =>
     request<{ ok: boolean; jobId: string }>('/files/extract', {

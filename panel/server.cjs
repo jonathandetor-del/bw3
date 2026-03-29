@@ -353,6 +353,66 @@ app.post('/api/plugins/upload', auth, async (req, res) => {
   }
 });
 
+app.post('/api/plugins/download', auth, async (req, res) => {
+  const rawUrl = String(req.body?.url || '').trim();
+  const requestedName = String(req.body?.name || '').trim();
+  if (!rawUrl) return res.status(400).json({ ok: false, error: 'Missing plugin URL' });
+
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch (_) {
+    return res.status(400).json({ ok: false, error: 'Invalid URL' });
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return res.status(400).json({ ok: false, error: 'Only HTTP/HTTPS URLs are allowed' });
+  }
+
+  let filename = requestedName;
+  if (!filename) {
+    const candidate = decodeURIComponent(path.basename(parsed.pathname || ''));
+    filename = candidate || 'plugin.jar';
+  }
+  filename = filename.replace(/[\\/]/g, '').replace(/\s+/g, ' ').trim();
+  if (!filename.toLowerCase().endsWith('.jar')) filename += '.jar';
+  if (!filename || filename.includes('..')) {
+    return res.status(400).json({ ok: false, error: 'Invalid plugin filename' });
+  }
+
+  const pluginsDir = path.join(DATA_DIR, 'plugins');
+  if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir, { recursive: true });
+  const fp = path.join(pluginsDir, filename);
+
+  try {
+    const response = await fetch(rawUrl);
+    if (!response.ok) {
+      return res.status(400).json({ ok: false, error: `Download failed (${response.status})` });
+    }
+
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length === 0) {
+      return res.status(400).json({ ok: false, error: 'Downloaded file is empty' });
+    }
+
+    fs.writeFileSync(fp, bytes);
+
+    const pluginName = filename.replace(/\.jar$/i, '');
+    let loadResult = '';
+    try {
+      const r = await getRcon();
+      loadResult = await r.command(`plugman load ${pluginName}`);
+    } catch (_) {
+      loadResult = 'RCON unavailable — plugin saved but not loaded';
+    }
+
+    logAction('plugin-download', { url: rawUrl, name: filename, size: bytes.length }, 'ok');
+    res.json({ ok: true, name: filename, loaded: loadResult });
+  } catch (e) {
+    logAction('plugin-download', { url: rawUrl, name: filename }, 'fail');
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ===========================================================
 // Worlds
 // ===========================================================

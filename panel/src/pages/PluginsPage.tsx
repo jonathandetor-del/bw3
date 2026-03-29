@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
-  Puzzle, Search, Upload, Trash2, Loader2,
+  Puzzle, Search, Upload, Trash2, Loader2, Link,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -24,6 +24,7 @@ export default function PluginsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; plugin: Plugin | null; saving: boolean }>({ open: false, plugin: null, saving: false });
+  const [downloadDialog, setDownloadDialog] = useState<{ open: boolean; url: string; name: string; saving: boolean }>({ open: false, url: "", name: "", saving: false });
   const [togglingSet, setTogglingSet] = useState<Set<string>>(new Set());
 
   const { data, isLoading } = useQuery({
@@ -87,6 +88,24 @@ export default function PluginsPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleDownloadPlugin = async () => {
+    const url = downloadDialog.url.trim();
+    if (!url) {
+      toast.error("Please enter a plugin URL");
+      return;
+    }
+    setDownloadDialog(prev => ({ ...prev, saving: true }));
+    try {
+      await api.downloadPlugin(url, downloadDialog.name.trim() || undefined);
+      toast.success("Plugin downloaded and installed");
+      setDownloadDialog({ open: false, url: "", name: "", saving: false });
+      qc.invalidateQueries({ queryKey: ['plugins'] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Plugin download failed");
+      setDownloadDialog(prev => ({ ...prev, saving: false }));
+    }
+  };
+
   const activeCount = plugins.filter(p => p.enabled).length;
 
   return (
@@ -94,6 +113,9 @@ export default function PluginsPage() {
       title="Plugins"
       actions={
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setDownloadDialog({ open: true, url: "", name: "", saving: false })}>
+            <Link className="h-4 w-4 mr-1" /> Download Plugin
+          </Button>
           <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-1" /> Install Plugin
           </Button>
@@ -182,6 +204,39 @@ export default function PluginsPage() {
             <Button variant="destructive" onClick={handleDelete} disabled={deleteDialog.saving}>
               {deleteDialog.saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               Remove Plugin
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Download Plugin Dialog */}
+      <Dialog open={downloadDialog.open} onOpenChange={(open) => setDownloadDialog((prev) => ({ ...prev, open }))}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Download Plugin</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Paste a direct .jar URL. Optional: set a custom filename.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={downloadDialog.url}
+              onChange={(e) => setDownloadDialog((prev) => ({ ...prev, url: e.target.value }))}
+              placeholder="https://example.com/MyPlugin.jar"
+              className="bg-muted border-border"
+            />
+            <Input
+              value={downloadDialog.name}
+              onChange={(e) => setDownloadDialog((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="Optional filename (e.g. MyPlugin.jar)"
+              className="bg-muted border-border"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDownloadDialog({ open: false, url: "", name: "", saving: false })}>Cancel</Button>
+            <Button className="bg-primary text-primary-foreground" onClick={handleDownloadPlugin} disabled={downloadDialog.saving}>
+              {downloadDialog.saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Download
             </Button>
           </DialogFooter>
         </DialogContent>
