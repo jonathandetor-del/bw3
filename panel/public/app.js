@@ -621,7 +621,7 @@
           <td>${modStr}</td>
           <td class="fm-perm">${permStr}</td>
           <td class="fm-cell-actions">
-            ${!e.isDir ? `<button class="fm-act-btn" data-action="download" title="Download">&#x2B07;</button>` : ''}
+            <button class="fm-act-btn" data-action="download" title="Download${e.isDir ? ' as .tar.gz' : ''}">&#x2B07;</button>
             ${editable ? `<button class="fm-act-btn" data-action="edit" title="Edit">&#x270E;</button>` : ''}
             <button class="fm-act-btn" data-action="rename" title="Rename">&#x270D;</button>
             ${isArchive(e.name) ? `<button class="fm-act-btn fm-act-extract" data-action="extract" title="Extract">&#x1F4E6;</button>` : ''}

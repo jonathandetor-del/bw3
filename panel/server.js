@@ -468,7 +468,23 @@ app.get('/api/files/download', auth, (req, res) => {
   const fp = safePath(req.query.path);
   if (!fp) return res.status(400).json({ error: 'Invalid path' });
   try {
-    res.download(fp);
+    const stat = fs.statSync(fp);
+    if (stat.isDirectory()) {
+      const dirName = path.basename(fp);
+      res.setHeader('Content-Type', 'application/gzip');
+      res.setHeader('Content-Disposition', `attachment; filename="${dirName}.tar.gz"`);
+      const tar = spawn('tar', ['-czf', '-', '-C', path.dirname(fp), dirName]);
+      tar.stdout.pipe(res);
+      tar.stderr.on('data', () => {});
+      tar.on('error', (err) => {
+        if (!res.headersSent) res.status(500).json({ error: err.message });
+      });
+      tar.on('close', (code) => {
+        if (code !== 0 && !res.headersSent) res.status(500).end();
+      });
+    } else {
+      res.download(fp);
+    }
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
