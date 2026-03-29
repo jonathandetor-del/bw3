@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const Rcon = require('./rcon');
+const Rcon = require('./rcon.cjs');
 
 const app = express();
 const server = http.createServer(app);

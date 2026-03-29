@@ -450,8 +450,8 @@ if command -v nginx >/dev/null 2>&1; then
 fi
 
 # Server management panel (Node.js)
-if command -v node >/dev/null 2>&1 && [ -f /server/panel/server.js ]; then
-    cd /server/panel && node server.js >/tmp/panel.log 2>&1 &
+if command -v node >/dev/null 2>&1 && [ -f /server/panel/server.cjs ]; then
+    cd /server/panel && node server.cjs >/tmp/panel.log 2>&1 &
     echo "Server panel started on port 3000"
     cd "$SERVER_DIR"
 fi
