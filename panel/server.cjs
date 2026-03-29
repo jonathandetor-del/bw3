@@ -329,6 +329,30 @@ app.post('/api/plugins/:name/delete', auth, async (req, res) => {
   }
 });
 
+app.get('/api/plugins/:name/download', auth, (req, res) => {
+  const name = req.params.name;
+  if (!name) return res.status(400).json({ ok: false, error: 'Missing plugin name' });
+
+  const pluginsDir = path.join(DATA_DIR, 'plugins');
+  try {
+    const files = fs.readdirSync(pluginsDir);
+    const nameLower = name.toLowerCase();
+    const jar = files.find(f => {
+      if (!/\.jar$/i.test(f)) return false;
+      const base = f.replace(/\.jar$/i, '').toLowerCase();
+      return base === nameLower || base.startsWith(nameLower + '-') || base.startsWith(nameLower + '_') || base.startsWith(nameLower + ' ');
+    });
+
+    if (!jar) return res.status(404).json({ ok: false, error: 'Plugin jar not found' });
+    const jarPath = path.join(pluginsDir, jar);
+    logAction('plugin-download-local', { name, jar }, 'ok');
+    return res.download(jarPath, jar);
+  } catch (e) {
+    logAction('plugin-download-local', { name }, 'fail');
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.post('/api/plugins/upload', auth, async (req, res) => {
   const name = req.query.name;
   if (!name || !/\.jar$/i.test(name) || name.includes('..') || name.includes('/') || name.includes('\\')) {
@@ -921,6 +945,163 @@ app.post('/api/staff/group', auth, async (req, res) => {
   } catch (e) {
     logAction('staff-group', { player, group }, 'fail');
     res.json({ ok: false, error: e.message });
+  }
+});
+
+// ===========================================================
+// Users API — real data from server files + RCON
+// ===========================================================
+
+app.get('/api/users', auth, async (req, res) => {
+  const usersMap = new Map();
+  const upsert = (name, patch) => {
+    if (!name) return;
+    const key = String(name).toLowerCase();
+    const existing = usersMap.get(key) || {
+      id: key,
+      username: name,
+      nickname: null,
+      uuid: '',
+      role: 'player',
+      status: 'offline',
+      isOpped: false,
+      lastSeen: 'Unknown',
+      playtime: '-',
+      gamesPlayed: 0,
+      banReason: undefined,
+    };
+    usersMap.set(key, { ...existing, ...patch, username: existing.username || name });
+  };
+
+  try {
+    const userCachePath = path.join(DATA_DIR, 'usercache.json');
+    if (fs.existsSync(userCachePath)) {
+      const cache = JSON.parse(fs.readFileSync(userCachePath, 'utf8'));
+      if (Array.isArray(cache)) {
+        for (const u of cache) {
+          if (!u?.name) continue;
+          upsert(u.name, {
+            id: u.uuid || String(u.name).toLowerCase(),
+            uuid: u.uuid || '',
+          });
+        }
+      }
+    }
+  } catch (_) {}
+
+  try {
+    const whitelistPath = path.join(DATA_DIR, 'whitelist.json');
+    if (fs.existsSync(whitelistPath)) {
+      const wl = JSON.parse(fs.readFileSync(whitelistPath, 'utf8'));
+      if (Array.isArray(wl)) {
+        for (const u of wl) {
+          if (!u?.name) continue;
+          upsert(u.name, { uuid: u.uuid || '' });
+        }
+      }
+    }
+  } catch (_) {}
+
+  try {
+    const opsPath = path.join(DATA_DIR, 'ops.json');
+    if (fs.existsSync(opsPath)) {
+      const ops = JSON.parse(fs.readFileSync(opsPath, 'utf8'));
+      if (Array.isArray(ops)) {
+        for (const op of ops) {
+          if (!op?.name) continue;
+          upsert(op.name, {
+            uuid: op.uuid || '',
+            isOpped: true,
+            role: op.level >= 4 ? 'admin' : 'moderator',
+          });
+        }
+      }
+    }
+  } catch (_) {}
+
+  try {
+    const bannedPath = path.join(DATA_DIR, 'banned-players.json');
+    if (fs.existsSync(bannedPath)) {
+      const banned = JSON.parse(fs.readFileSync(bannedPath, 'utf8'));
+      if (Array.isArray(banned)) {
+        for (const b of banned) {
+          if (!b?.name) continue;
+          upsert(b.name, {
+            uuid: b.uuid || '',
+            status: 'banned',
+            banReason: b.reason || 'Banned',
+            lastSeen: b.created || 'Unknown',
+          });
+        }
+      }
+    }
+  } catch (_) {}
+
+  try {
+    const r = await getRcon();
+    const listResp = await r.command('list');
+    const parts = listResp.split(':');
+    const onlineNames = parts.length > 1
+      ? parts.slice(1).join(':').trim().split(',').map(n => n.trim().replace(/\u00A7[0-9a-fk-or]/gi, '')).filter(Boolean)
+      : [];
+    for (const n of onlineNames) {
+      upsert(n, { status: 'online', lastSeen: 'Now' });
+    }
+  } catch (_) {}
+
+  const users = Array.from(usersMap.values()).sort((a, b) => a.username.localeCompare(b.username));
+  res.json({ ok: true, users });
+});
+
+app.post('/api/users/add', auth, async (req, res) => {
+  const player = String(req.body?.player || '').trim();
+  const role = String(req.body?.role || 'player').trim().toLowerCase();
+  if (!player) return res.status(400).json({ ok: false, error: 'Missing player' });
+
+  try {
+    const r = await getRcon();
+    await r.command(`whitelist add ${player}`);
+
+    if (role !== 'player') {
+      await r.command(`op ${player}`);
+      const lpRole = role === 'moderator' ? 'mod' : role;
+      try { await r.command(`lp user ${player} parent set ${lpRole}`); } catch (_) {}
+    }
+
+    logAction('user-add', { player, role }, 'ok');
+    res.json({ ok: true });
+  } catch (e) {
+    logAction('user-add', { player, role }, 'fail');
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/users/ban', auth, async (req, res) => {
+  const player = String(req.body?.player || '').trim();
+  const reason = String(req.body?.reason || 'Banned by admin').trim();
+  if (!player) return res.status(400).json({ ok: false, error: 'Missing player' });
+  try {
+    const r = await getRcon();
+    const result = await r.command(`ban ${player} ${reason}`);
+    logAction('user-ban', { player, reason }, 'ok');
+    res.json({ ok: true, result });
+  } catch (e) {
+    logAction('user-ban', { player, reason }, 'fail');
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/users/unban', auth, async (req, res) => {
+  const player = String(req.body?.player || '').trim();
+  if (!player) return res.status(400).json({ ok: false, error: 'Missing player' });
+  try {
+    const r = await getRcon();
+    const result = await r.command(`pardon ${player}`);
+    logAction('user-unban', { player }, 'ok');
+    res.json({ ok: true, result });
+  } catch (e) {
+    logAction('user-unban', { player }, 'fail');
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 

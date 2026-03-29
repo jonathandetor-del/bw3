@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelLayout } from "@/components/PanelLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  Search, UserPlus, Shield, Crown, Ban, Trash2, MoreHorizontal, Star, ShieldOff,
+  Search, UserPlus, Shield, Crown, Ban, Trash2, MoreHorizontal, Star, ShieldOff, Loader2,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -15,6 +16,8 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 interface User {
   id: string;
@@ -30,19 +33,6 @@ interface User {
   banReason?: string;
 }
 
-const mockUsers: User[] = [
-  { id: "1", username: "ServerOwner", nickname: null, uuid: "a1b2c3d4", role: "owner", status: "online", isOpped: true, lastSeen: "Now", playtime: "342h", gamesPlayed: 1204 },
-  { id: "2", username: "AdminSteve", nickname: "~Admin~", uuid: "e5f6g7h8", role: "admin", status: "online", isOpped: true, lastSeen: "Now", playtime: "156h", gamesPlayed: 523 },
-  { id: "3", username: "ModAlex", nickname: null, uuid: "i9j0k1l2", role: "moderator", status: "online", isOpped: true, lastSeen: "Now", playtime: "89h", gamesPlayed: 287 },
-  { id: "4", username: "xNotch", nickname: "TheNotch", uuid: "m3n4o5p6", role: "player", status: "online", isOpped: false, lastSeen: "Now", playtime: "45h", gamesPlayed: 167 },
-  { id: "5", username: "ProGamer99", nickname: "~PG99~", uuid: "q7r8s9t0", role: "player", status: "online", isOpped: false, lastSeen: "Now", playtime: "234h", gamesPlayed: 891 },
-  { id: "6", username: "BuilderBob", nickname: null, uuid: "u1v2w3x4", role: "player", status: "offline", isOpped: false, lastSeen: "2h ago", playtime: "78h", gamesPlayed: 45 },
-  { id: "7", username: "HackerKid", nickname: "xXHackerXx", uuid: "y5z6a7b8", role: "player", status: "banned", isOpped: false, lastSeen: "3d ago", playtime: "2h", gamesPlayed: 8, banReason: "Using kill aura & fly hacks" },
-  { id: "8", username: "DiamondQueen", nickname: "Diamond", uuid: "c9d0e1f2", role: "player", status: "offline", isOpped: false, lastSeen: "1d ago", playtime: "312h", gamesPlayed: 1045 },
-  { id: "9", username: "GrieferMax", nickname: "xDestroyerx", uuid: "g3h4i5j6", role: "player", status: "banned", isOpped: false, lastSeen: "5d ago", playtime: "12h", gamesPlayed: 34, banReason: "Griefing and harassment" },
-  { id: "10", username: "SpamBot2000", nickname: null, uuid: "k7l8m9n0", role: "player", status: "banned", isOpped: false, lastSeen: "7d ago", playtime: "0h", gamesPlayed: 0, banReason: "Spam bot - auto-banned" },
-];
-
 const roleColors: Record<string, string> = {
   owner: "bg-console-warn/10 text-console-warn border-console-warn/20",
   admin: "bg-destructive/10 text-destructive border-destructive/20",
@@ -57,31 +47,97 @@ const statusColors: Record<string, string> = {
 };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState(mockUsers);
+  const qc = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [addDialog, setAddDialog] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newRole, setNewRole] = useState("player");
   const [activeTab, setActiveTab] = useState("all");
+  const [savingAdd, setSavingAdd] = useState(false);
 
-  const filtered = users.filter((u) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: api.getUsers,
+    refetchInterval: 10000,
+  });
+
+  const users: User[] = data?.users || [];
+
+  const filtered = useMemo(() => users.filter((u) => {
     const matchesSearch = u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (u.nickname?.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesRole = filterRole === "all" || u.role === filterRole;
     return matchesSearch && matchesRole;
-  });
+  }), [users, searchQuery, filterRole]);
 
-  const bannedUsers = users.filter((u) => u.status === "banned");
-  const oppedUsers = users.filter((u) => u.isOpped);
+  const bannedUsers = useMemo(() => users.filter((u) => u.status === "banned"), [users]);
+  const oppedUsers = useMemo(() => users.filter((u) => u.isOpped), [users]);
   const online = users.filter((u) => u.status === "online").length;
 
-  const handleUnban = (userId: string) => {
-    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, status: "offline" as const, banReason: undefined } : u));
+  const refreshUsers = () => {
+    qc.invalidateQueries({ queryKey: ['users'] });
   };
 
-  const handleDeop = (userId: string) => {
-    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, isOpped: false } : u));
+  const handleUnban = async (username: string) => {
+    try {
+      await api.unbanUser(username);
+      toast.success(`${username} unbanned`);
+      refreshUsers();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Unban failed");
+    }
+  };
+
+  const handleBan = async (username: string) => {
+    try {
+      await api.banUser(username, 'Banned by admin');
+      toast.success(`${username} banned`);
+      refreshUsers();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Ban failed");
+    }
+  };
+
+  const handleDeop = async (username: string) => {
+    try {
+      await api.setStaffOp(username, 'deop');
+      toast.success(`${username} deopped`);
+      refreshUsers();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Deop failed");
+    }
+  };
+
+  const handleOp = async (username: string) => {
+    try {
+      await api.setStaffOp(username, 'op');
+      toast.success(`${username} opped`);
+      refreshUsers();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Op failed");
+    }
+  };
+
+  const handleAddUser = async () => {
+    const player = newUsername.trim();
+    if (!player) {
+      toast.error('Enter a username');
+      return;
+    }
+    setSavingAdd(true);
+    try {
+      await api.addUser(player, newRole);
+      toast.success(`${player} added`);
+      setAddDialog(false);
+      setNewUsername('');
+      setNewRole('player');
+      refreshUsers();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Add user failed');
+    } finally {
+      setSavingAdd(false);
+    }
   };
 
   return (
@@ -142,6 +198,11 @@ export default function UsersPage() {
               <span>User</span><span>Role</span><span>Status</span><span>Games</span><span>Playtime</span><span>Last Seen</span><span />
             </div>
             <div className="divide-y divide-border">
+              {isLoading && (
+                <div className="px-4 py-10 flex items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
               {filtered.map((user) => (
                 <div key={user.id} className="grid grid-cols-[1fr_100px_80px_80px_100px_80px_48px] gap-4 px-4 py-3 items-center hover:bg-surface-hover group">
                   <div className="flex items-center gap-3">
@@ -174,11 +235,13 @@ export default function UsersPage() {
                       <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 h-7 w-7 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="bg-popover border-border">
-                      <DropdownMenuItem><Shield className="h-4 w-4 mr-2" /> Change Role</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => user.isOpped ? handleDeop(user.id) : setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isOpped: true } : u))}>
+                      <DropdownMenuItem onClick={() => toast.info('Role changes are managed by LuckPerms group commands')}>
+                        <Shield className="h-4 w-4 mr-2" /> Change Role
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => user.isOpped ? handleDeop(user.username) : handleOp(user.username)}>
                         <Star className="h-4 w-4 mr-2" /> {user.isOpped ? "Deop" : "Op"}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => user.status === "banned" ? handleUnban(user.id) : setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: "banned" as const, banReason: "Banned by admin" } : u))}>
+                      <DropdownMenuItem onClick={() => user.status === "banned" ? handleUnban(user.username) : handleBan(user.username)}>
                         <Ban className="h-4 w-4 mr-2" /> {user.status === "banned" ? "Unban" : "Ban"}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -212,7 +275,7 @@ export default function UsersPage() {
                   </div>
                   <p className="text-sm text-destructive/80 truncate">{user.banReason || "No reason"}</p>
                   <span className="text-xs text-muted-foreground">{user.lastSeen}</span>
-                  <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10" onClick={() => handleUnban(user.id)}>
+                  <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10" onClick={() => handleUnban(user.username)}>
                     <ShieldOff className="h-3.5 w-3.5 mr-1" /> Unban
                   </Button>
                 </div>
@@ -242,7 +305,7 @@ export default function UsersPage() {
                   </div>
                   <Badge variant="outline" className={`text-xs w-fit ${roleColors[user.role]}`}>{user.role}</Badge>
                   <span className={`text-xs capitalize ${user.status === "online" ? "text-primary" : "text-muted-foreground"}`}>{user.status}</span>
-                  <Button size="sm" variant="outline" className="border-console-warn/30 text-console-warn hover:bg-console-warn/10" onClick={() => handleDeop(user.id)}>
+                  <Button size="sm" variant="outline" className="border-console-warn/30 text-console-warn hover:bg-console-warn/10" onClick={() => handleDeop(user.username)}>
                     <ShieldOff className="h-3.5 w-3.5 mr-1" /> Deop
                   </Button>
                 </div>
@@ -271,7 +334,10 @@ export default function UsersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialog(false)}>Cancel</Button>
-            <Button className="bg-primary text-primary-foreground" onClick={() => setAddDialog(false)}>Add User</Button>
+            <Button className="bg-primary text-primary-foreground" onClick={handleAddUser} disabled={savingAdd}>
+              {savingAdd && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Add User
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

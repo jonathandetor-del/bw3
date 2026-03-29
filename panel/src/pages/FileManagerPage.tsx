@@ -417,13 +417,11 @@ export default function FileManagerPage() {
                   <DropdownMenuItem onClick={() => setMoveDialog({ open: true, name: item.name, destination: currentPath, saving: false })}>
                     <FolderOpen className="h-4 w-4 mr-2" /> Move
                   </DropdownMenuItem>
-                  {!item.isDir && (
-                    <DropdownMenuItem asChild>
-                      <a href={api.downloadFileUrl(fullPath(item.name))} download>
-                        <Download className="h-4 w-4 mr-2" /> Download
-                      </a>
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem asChild>
+                    <a href={api.downloadFileUrl(fullPath(item.name))} download>
+                      <Download className="h-4 w-4 mr-2" /> Download
+                    </a>
+                  </DropdownMenuItem>
                   {!item.isDir && isArchive(item.name) && (
                     <DropdownMenuItem onClick={() => handleExtract(item.name)}>
                       <Archive className="h-4 w-4 mr-2" /> Extract / Unzip

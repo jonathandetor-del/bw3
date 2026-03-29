@@ -91,6 +91,9 @@ export const api = {
       body: JSON.stringify({ url, name }),
     }),
 
+  downloadPluginUrl: (name: string) =>
+    `${API_BASE}/plugins/${encodeURIComponent(name)}/download`,
+
   // Worlds
   getWorlds: () =>
     request<{ ok: boolean; worlds: { name: string; path: string; size: number }[] }>('/worlds'),
@@ -217,6 +220,43 @@ export const api = {
     request<{ ok: boolean; result: string }>('/staff/group', {
       method: 'POST',
       body: JSON.stringify({ player, group }),
+    }),
+
+  // Users
+  getUsers: () =>
+    request<{
+      ok: boolean;
+      users: {
+        id: string;
+        username: string;
+        nickname: string | null;
+        uuid: string;
+        role: 'owner' | 'admin' | 'moderator' | 'player';
+        status: 'online' | 'offline' | 'banned';
+        isOpped: boolean;
+        lastSeen: string;
+        playtime: string;
+        gamesPlayed: number;
+        banReason?: string;
+      }[];
+    }>('/users'),
+
+  addUser: (player: string, role: string) =>
+    request<{ ok: boolean }>('/users/add', {
+      method: 'POST',
+      body: JSON.stringify({ player, role }),
+    }),
+
+  banUser: (player: string, reason?: string) =>
+    request<{ ok: boolean; result: string }>('/users/ban', {
+      method: 'POST',
+      body: JSON.stringify({ player, reason }),
+    }),
+
+  unbanUser: (player: string) =>
+    request<{ ok: boolean; result: string }>('/users/unban', {
+      method: 'POST',
+      body: JSON.stringify({ player }),
     }),
 
   // Action logs
