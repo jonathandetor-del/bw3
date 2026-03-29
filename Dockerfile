@@ -46,10 +46,12 @@ RUN ARCH="$(uname -m)" && \
 
 # Build mcrcon (Minecraft RCON CLI client)
 RUN apk add --no-cache --virtual .build-deps gcc musl-dev && \
-    curl -fsSL https://github.com/Tiiffi/mcrcon/archive/refs/tags/v0.7.2.tar.gz | tar xz -C /tmp && \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+        https://github.com/Tiiffi/mcrcon/archive/refs/tags/v0.7.2.tar.gz -o /tmp/mcrcon.tar.gz && \
+    tar xz -C /tmp -f /tmp/mcrcon.tar.gz && \
     cd /tmp/mcrcon-0.7.2 && \
     gcc -std=gnu11 -pedantic -Wall -Wextra -O2 -s -o /usr/local/bin/mcrcon mcrcon.c && \
-    rm -rf /tmp/mcrcon-0.7.2 && \
+    rm -rf /tmp/mcrcon-0.7.2 /tmp/mcrcon.tar.gz && \
     apk del .build-deps
 
 # Create server directory and non-root user for security
