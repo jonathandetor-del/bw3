@@ -8,7 +8,11 @@ if [ -d /data ]; then
         # Truncate any huge latest.log from previous Netty spam
         echo "" > /data/logs/latest.log 2>/dev/null
     fi
+    # Remove stuck temp extraction dirs from previous failed runs
+    rm -rf /data/.archive-extract-* 2>/dev/null
     chown -R minecraft:minecraft /data
+    # Ensure minecraft user can read/write/traverse everything
+    chmod -R u+rwX /data
 fi
 
 # Drop to minecraft user and run start.sh (preserve PATH for java)

@@ -323,6 +323,14 @@ LANGEOF
 # After extraction the zip is renamed to .zip.done so it won't be extracted again.
 # Handles both flat zips (airshow/, amazon/...) and wrapped zips (m160bw/airshow/, m160bw/amazon/...).
 extract_uploaded_archives() {
+    # Clean up any stuck temp dirs from previous failed extractions
+    for stale in /data/.archive-extract-*; do
+        [ -d "$stale" ] || continue
+        echo "Cleaning stuck temp dir: $stale"
+        chmod -R u+rwX "$stale" 2>/dev/null
+        rm -rf "$stale" 2>/dev/null
+    done
+
     for archive in /data/*.zip /data/*.rar; do
         [ -f "$archive" ] || continue
         # Skip non-arena files (File Browser db, etc.)
@@ -331,6 +339,7 @@ extract_uploaded_archives() {
         esac
         echo "Found uploaded archive: $archive — extracting..."
         tmpdir="/data/.archive-extract-$$"
+        rm -rf "$tmpdir" 2>/dev/null
         mkdir -p "$tmpdir"
         case "$archive" in
             *.zip) unzip -o -q "$archive" -d "$tmpdir" ;;
@@ -348,10 +357,12 @@ extract_uploaded_archives() {
             else
                 cp -a "$tmpdir"/* /data/ 2>/dev/null || true
             fi
+            chmod -R u+rwX "$tmpdir" 2>/dev/null
             rm -rf "$tmpdir"
             mv "$archive" "${archive}.done"
             echo "Extracted and renamed to ${archive}.done"
         else
+            chmod -R u+rwX "$tmpdir" 2>/dev/null
             rm -rf "$tmpdir"
             echo "WARNING: Failed to extract $archive"
         fi
