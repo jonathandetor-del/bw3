@@ -451,7 +451,7 @@ fi
 
 # Server management panel (Node.js)
 if command -v node >/dev/null 2>&1 && [ -f /server/panel/server.cjs ]; then
-    cd /server/panel && node server.cjs >/tmp/panel.log 2>&1 &
+    cd /server/panel && node server.cjs 2>&1 | tee /tmp/panel.log &
     echo "Server panel started on port 3000"
     cd "$SERVER_DIR"
 fi
