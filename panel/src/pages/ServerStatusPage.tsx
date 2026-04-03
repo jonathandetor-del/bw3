@@ -28,7 +28,8 @@ export default function ServerStatusPage() {
   const { data: info, isLoading: infoLoading } = useQuery({
     queryKey: ["server-info"],
     queryFn: api.getInfo,
-    refetchInterval: 5000,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: actionsData, isLoading: actionsLoading } = useQuery({

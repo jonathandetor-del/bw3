@@ -119,6 +119,33 @@ async function getRcon() {
   return rcon;
 }
 
+// Cache frequent `list` calls to avoid hammering the server with RCON.
+let onlineListCache = {
+  ts: 0,
+  names: [],
+  maxPlayers: 20,
+};
+
+async function getOnlineListCached() {
+  const now = Date.now();
+  if (now - onlineListCache.ts < 10000) return onlineListCache;
+
+  const r = await getRcon();
+  const listResp = await r.command('list');
+  const countMatch = listResp.match(/(\d+)\s+of a max of\s+(\d+)/i);
+  const parts = listResp.split(':');
+  const names = parts.length > 1
+    ? parts.slice(1).join(':').trim().split(',').map(n => n.trim().replace(/\u00A7[0-9a-fk-or]/gi, '')).filter(Boolean)
+    : [];
+
+  onlineListCache = {
+    ts: now,
+    names,
+    maxPlayers: countMatch ? parseInt(countMatch[2]) : 20,
+  };
+  return onlineListCache;
+}
+
 // ===========================================================
 // Middleware
 // ===========================================================
@@ -176,9 +203,9 @@ app.get('/api/info', auth, async (req, res) => {
     } catch (_) {}
 
     try {
-      const listResp = await r.command('list');
-      const m = listResp.match(/(\d+)\s+of a max of\s+(\d+)/i);
-      if (m) { playerCount = parseInt(m[1]); maxPlayers = parseInt(m[2]); }
+      const list = await getOnlineListCached();
+      playerCount = list.names.length;
+      maxPlayers = list.maxPlayers;
     } catch (_) {}
 
     let memUsed = 0, memTotal = 0;
@@ -230,13 +257,8 @@ app.get('/api/info', auth, async (req, res) => {
 
 app.get('/api/players', auth, async (req, res) => {
   try {
-    const r = await getRcon();
-    const resp = await r.command('list');
-    const parts = resp.split(':');
-    const names = parts.length > 1
-      ? parts.slice(1).join(':').trim().split(',').map(n => n.trim().replace(/\u00A7[0-9a-fk-or]/gi, '')).filter(Boolean)
-      : [];
-    res.json({ ok: true, players: names });
+    const list = await getOnlineListCached();
+    res.json({ ok: true, players: list.names });
   } catch (e) {
     res.json({ ok: true, players: [], error: e.message });
   }
@@ -1038,13 +1060,8 @@ app.get('/api/users', auth, async (req, res) => {
   } catch (_) {}
 
   try {
-    const r = await getRcon();
-    const listResp = await r.command('list');
-    const parts = listResp.split(':');
-    const onlineNames = parts.length > 1
-      ? parts.slice(1).join(':').trim().split(',').map(n => n.trim().replace(/\u00A7[0-9a-fk-or]/gi, '')).filter(Boolean)
-      : [];
-    for (const n of onlineNames) {
+    const list = await getOnlineListCached();
+    for (const n of list.names) {
       upsert(n, { status: 'online', lastSeen: 'Now' });
     }
   } catch (_) {}

@@ -24,7 +24,8 @@ export default function PlayersLivePage() {
   const { data, isLoading } = useQuery({
     queryKey: ['players'],
     queryFn: api.getPlayers,
-    refetchInterval: 5000,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: false,
   });
 
   const players: string[] = data?.players || [];
